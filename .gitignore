@@ -1,5 +1,5 @@
 .wip/*
 .setup/*
-!.setup/README.md
+.env
 .aws/
 .copier-answers.yml

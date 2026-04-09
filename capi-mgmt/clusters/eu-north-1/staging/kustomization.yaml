@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/cluster.yaml
+patches:
+  - target:
+      kind: AWSManagedControlPlane
+      name: workload-1-control-plane
+    patch: |-
+      - op: replace
+        path: /spec/region
+        value: eu-north-1
+  - target:
+      kind: AWSManagedMachinePool
+      name: workload-1-arm
+    patch: |-
+      - op: replace
+        path: /spec/availabilityZones
+        value:
+          - eu-north-1a
+          - eu-north-1b
+          - eu-north-1c

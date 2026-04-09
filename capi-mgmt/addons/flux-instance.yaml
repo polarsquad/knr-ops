@@ -1,0 +1,69 @@
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# ConfigMap containing the FluxInstance CR that will be applied to each
+# workload cluster by the ClusterResourceSet below.
+#
+# Each workload cluster gets its own Flux instance syncing from this same
+# repository. Adjust spec.sync.path per-cluster if each cluster needs a
+# dedicated directory (e.g. via a Kustomize overlay or separate ConfigMaps).
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-instance-manifest
+  namespace: default
+data:
+  flux-instance.yaml: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: flux-system
+    ---
+    apiVersion: fluxcd.controlplane.io/v1
+    kind: FluxInstance
+    metadata:
+      name: flux
+      namespace: flux-system
+      annotations:
+        fluxcd.controlplane.io/reconcileEvery: "1h"
+        fluxcd.controlplane.io/reconcileTimeout: "5m"
+    spec:
+      distribution:
+        version: "2.x"
+        registry: "ghcr.io/fluxcd"
+        artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests"
+      components:
+        - source-controller
+        - kustomize-controller
+        - helm-controller
+        - notification-controller
+      cluster:
+        type: kubernetes
+        size: small
+        multitenant: false
+        networkPolicy: true
+        domain: "cluster.local"
+      sync:
+        kind: GitRepository
+        url: "https://github.com/polarsquad/krm-ops"
+        ref: "refs/heads/main"
+        path: "workloads"
+        pullSecret: "flux-github-app"
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# ClusterResourceSet: applies the FluxInstance ConfigMap to every workload
+# cluster labeled fluxcd=enabled, once the cluster becomes ready.
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: flux-instance
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      fluxcd: enabled
+  strategy: ApplyOnce
+  resources:
+    - kind: ConfigMap
+      name: flux-instance-manifest
