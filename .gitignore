@@ -1,0 +1,5 @@
+.wip/*
+.setup/*
+!.setup/README.md
+.aws/
+.copier-answers.yml
