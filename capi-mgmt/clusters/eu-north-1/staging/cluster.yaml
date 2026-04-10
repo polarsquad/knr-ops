@@ -1,0 +1,133 @@
+---
+# ── EKS Cluster ──────────────────────────────────────────────────────────────
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: workload-base
+  namespace: default
+  labels:
+    fluxcd: enabled
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 192.168.0.0/16
+    services:
+      cidrBlocks:
+        - 10.128.0.0/12
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedControlPlane
+    name: workload-control-plane
+  infrastructureRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedControlPlane
+    name: workload-control-plane
+---
+# ── EKS Managed Control Plane ────────────────────────────────────────────────
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: workload-control-plane
+  namespace: default
+spec:
+  region: eu-north-1
+  version: "v1.34"
+  endpointAccess:
+    public: true
+    private: true
+  addons:
+    - name: vpc-cni
+      version: v1.21.1-eksbuild.7
+      conflictResolution: overwrite
+    - name: coredns
+      version: v1.13.2-eksbuild.4
+      conflictResolution: overwrite
+    - name: kube-proxy
+      version: v1.34.6-eksbuild.2
+      conflictResolution: overwrite
+
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# Node Pool 1: GPU – single cheapest NVIDIA GPU instance (g4dn.xlarge, 1x T4)
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: workload-gpu
+  namespace: default
+spec:
+  clusterName: workload-gpu
+  replicas: 1
+  template:
+    spec:
+      clusterName: workload-gpu
+      bootstrap:
+        dataSecretName: ""
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: workload-gpu
+      version: "v1.34"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedMachinePool
+metadata:
+  name: workload-gpu
+  namespace: default
+spec:
+  instanceType: g4dn.xlarge
+  scaling:
+    minSize: 1
+    maxSize: 2
+  amiType: AL2_x86_64_GPU
+  capacityType: onDemand
+  labels:
+    node.kubernetes.io/gpu: "true"
+    nvidia.com/gpu.present: "true"
+  taints:
+    - key: nvidia.com/gpu
+      value: "true"
+      effect: NoSchedule
+
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# Node Pool 2: ARM – 3 highly-available Graviton nodes (t4g.medium)
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: workload-arm
+  namespace: default
+spec:
+  clusterName: workload-arm
+  replicas: 3
+  template:
+    spec:
+      clusterName: workload-arm
+      bootstrap:
+        dataSecretName: ""
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: workload-arm
+      version: "v1.34"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedMachinePool
+metadata:
+  name: workload-arm
+  namespace: default
+spec:
+  instanceType: t4g.medium
+  scaling:
+    minSize: 3
+    maxSize: 5
+  amiType: AL2_ARM_64
+  capacityType: onDemand
+  availabilityZones:
+    - eu-north-1a
+    - eu-north-1b
+    - eu-north-1c
+  labels:
+    node.kubernetes.io/arch: arm64
