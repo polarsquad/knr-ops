@@ -1,6 +1,6 @@
 ---
 # ── Infrastructure: cert-manager → capi-operator → capi-providers ────────────
-apiVersion: kustomize.toolkit.fluxcd.io/v1
+apiVersion: kustomize.toolkit.fluxcd.io/v2
 kind: Kustomization
 metadata:
   name: infrastructure
@@ -18,7 +18,7 @@ spec:
 ---
 # ── Addons: HelmChartProxy + ClusterResourceSet for workload clusters ─────────
 # Depends on infrastructure so CAAPH CRDs exist before these resources apply.
-apiVersion: kustomize.toolkit.fluxcd.io/v1
+apiVersion: kustomize.toolkit.fluxcd.io/v2
 kind: Kustomization
 metadata:
   name: addons
@@ -40,7 +40,7 @@ spec:
 # Depends on infrastructure so the cluster.x-k8s.io CRDs are present,
 # and on addons so the HelmChartProxy + ClusterResourceSet are ready to
 # act on any new Cluster resource the moment it is created.
-apiVersion: kustomize.toolkit.fluxcd.io/v1
+apiVersion: kustomize.toolkit.fluxcd.io/v2
 kind: Kustomization
 metadata:
   name: clusters
