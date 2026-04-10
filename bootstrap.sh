@@ -52,40 +52,23 @@ kubectl create secret generic flux-github-app \
   --from-literal=githubAppInstallationID="${GITHUB_APP_INSTALLATION_ID}" \
   --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY}"
 
-# # ── Step 4: Apply the FluxInstance to start GitOps reconciliation ─────────────
-# echo ">>> Applying FluxInstance..."
-# kubectl apply -f - <<EOF
-# apiVersion: fluxcd.controlplane.io/v1
-# kind: FluxInstance
-# metadata:
-#   name: flux
-#   namespace: flux-system
-#   annotations:
-#     fluxcd.controlplane.io/reconcileEvery: "1h"
-#     fluxcd.controlplane.io/reconcileTimeout: "5m"
-# spec:
-#   distribution:
-#     version: "2.x"
-#     registry: "ghcr.io/fluxcd"
-#     artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests"
-#   components:
-#     - source-controller
-#     - kustomize-controller
-#     - helm-controller
-#     - notification-controller
-#   cluster:
-#     type: kubernetes
-#     size: small
-#     multitenant: false
-#     networkPolicy: true
-#     domain: "cluster.local"
-#   sync:
-#     kind: GitRepository
-#     url: "https://github.com/polarsquad/krm-ops"
-#     ref: "refs/heads/main"
-#     path: "capi-mgmt"
-#     pullSecret: "flux-github-app"
-# EOF
+# ── Step 4: Install the FluxInstance via Helm to start GitOps reconciliation ──
+echo ">>> Installing FluxInstance via Helm..."
+helm upgrade --install flux \
+  oci://ghcr.io/controlplaneio-fluxcd/charts/flux-instance \
+  --namespace flux-system \
+  --wait \
+  --set instance.cluster.type=kubernetes \
+  --set instance.cluster.size=small \
+  --set instance.cluster.multitenant=false \
+  --set instance.cluster.networkPolicy=true \
+  --set instance.cluster.domain=cluster.local \
+  --set instance.sync.kind=GitRepository \
+  --set instance.sync.url="${GIT_REPO_URL}" \
+  --set instance.sync.ref=refs/heads/main \
+  --set instance.sync.path=capi-mgmt \
+  --set instance.sync.pullSecret=flux-github-app \
+  --set instance.sync.provider=github
 
-# echo ""
-# echo ">>> Bootstrap complete! Flux is now reconciling"
+echo ""
+echo ">>> Bootstrap complete! Flux is now reconciling"
