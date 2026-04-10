@@ -1,5 +1,5 @@
 .wip/*
-.setup/*
-.env
+# .setup/*
+# .env
 .aws/
 .copier-answers.yml
