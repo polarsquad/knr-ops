@@ -11,6 +11,8 @@ spec:
   timeout: 10m
   prune: true
   wait: true
+  force: false
+  validation: none
   sourceRef:
     kind: GitRepository
     name: flux-system
@@ -33,6 +35,8 @@ spec:
   timeout: 5m
   prune: true
   wait: true
+  force: false
+  validation: none
   sourceRef:
     kind: GitRepository
     name: flux-system

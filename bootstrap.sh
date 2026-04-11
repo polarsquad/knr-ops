@@ -70,5 +70,32 @@ helm upgrade --install flux \
   --set instance.sync.pullSecret=flux-github-app \
   --set instance.sync.provider=github
 
+# ── Step 5: Apply the clusters Kustomization CR ───────────────────────────────
+# Applied imperatively so it never enters the flux-system GitOps sync path.
+# This prevents Flux from dry-running Cluster resources before the CAPI CRDs
+# exist. The clusters Kustomization depends on addons, which depends on
+# infrastructure, so ordering is still enforced via dependsOn at runtime.
+echo ">>> Applying clusters Kustomization CR..."
+kubectl apply -f - <<'EOF'
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: clusters
+  namespace: flux-system
+spec:
+  interval: 1h
+  retryInterval: 2m
+  timeout: 5m
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./capi-mgmt/clusters
+  dependsOn:
+    - name: infrastructure
+    - name: addons
+EOF
+
 echo ""
 echo ">>> Bootstrap complete! Flux is now reconciling"
