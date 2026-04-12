@@ -11,19 +11,14 @@ spec:
   timeout: 10m
   prune: true
   wait: true
-  force: false
-  validation: none
   sourceRef:
     kind: GitRepository
     name: flux-system
   path: ./capi-mgmt/infrastructure
 ---
-# ── Addons + Clusters: delivered together once infrastructure is healthy ───────
+# ── Addons: HelmChartProxy + ClusterResourceSet for workload clusters ─────────
 # Depends on infrastructure so that CAPI and CAAPH CRDs are present before
-# the HelmChartProxy, ClusterResourceSet, and Cluster manifests are applied.
-# The clusters Kustomization CR lives inside capi-mgmt/addons so it is only
-# created after this dependsOn gate is satisfied — preventing the Cluster
-# dry-run from running before cluster.x-k8s.io CRDs exist.
+# the HelmChartProxy and ClusterResourceSet manifests are applied.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -35,8 +30,6 @@ spec:
   timeout: 5m
   prune: true
   wait: true
-  force: false
-  validation: none
   sourceRef:
     kind: GitRepository
     name: flux-system
