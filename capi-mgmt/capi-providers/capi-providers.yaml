@@ -1,5 +1,46 @@
 ---
 # ══════════════════════════════════════════════════════════════════════════════
+# Namespaces – must exist before the provider CRs are applied so that Flux
+# dry-run does not fail with "namespace not found".
+# The CAPI Operator would normally create these, but they must be declared
+# explicitly here so they are present at apply time.
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: capi-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: capi-kubeadm-bootstrap-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: capi-kubeadm-control-plane-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: capa-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: capa-eks-bootstrap-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: capa-eks-control-plane-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: caaph-system
+---
+# ══════════════════════════════════════════════════════════════════════════════
 # CAPI Providers – managed by the Cluster API Operator.
 # The Operator watches these CRDs and installs/manages the provider controllers.
 # ══════════════════════════════════════════════════════════════════════════════
