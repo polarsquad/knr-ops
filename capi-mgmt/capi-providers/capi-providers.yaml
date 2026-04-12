@@ -52,7 +52,7 @@ metadata:
   name: cluster-api
   namespace: capi-system
 spec:
-  version: "v1.12.x"
+  version: "v1.12.5"
 ---
 # ── Kubeadm Bootstrap Provider ────────────────────────────────────────────────
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
@@ -61,7 +61,7 @@ metadata:
   name: kubeadm
   namespace: capi-kubeadm-bootstrap-system
 spec:
-  version: "v1.12.x"
+  version: "v1.12.5"
 ---
 # ── Kubeadm Control Plane Provider ────────────────────────────────────────────
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
@@ -70,7 +70,7 @@ metadata:
   name: kubeadm
   namespace: capi-kubeadm-control-plane-system
 spec:
-  version: "v1.12.x"
+  version: "v1.12.5"
 ---
 # ── AWS Infrastructure Provider (CAPA) ───────────────────────────────────────
 # EKS feature gates are required for AWSManagedControlPlane and EKS node pools.
@@ -80,7 +80,7 @@ metadata:
   name: aws
   namespace: capa-system
 spec:
-  version: "v2.10.x"
+  version: "v2.10.2"
   configSecret:
     name: aws-credentials
   fetchConfig:
@@ -101,7 +101,7 @@ metadata:
   name: aws-eks
   namespace: capa-eks-bootstrap-system
 spec:
-  version: "v2.10.x"
+  version: "v2.10.2"
 ---
 # ── EKS Control Plane Provider ───────────────────────────────────────────────
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
@@ -110,7 +110,7 @@ metadata:
   name: aws-eks
   namespace: capa-eks-control-plane-system
 spec:
-  version: "v2.10.x"
+  version: "v2.10.2"
 ---
 # ── CAAPH – Helm Add-on Provider ─────────────────────────────────────────────
 # Enables HelmChartProxy and ClusterResourceSet resources used in addons/.
@@ -120,4 +120,4 @@ metadata:
   name: helm
   namespace: caaph-system
 spec:
-  version: "v0.2.x"
+  version: "v0.6.2"
