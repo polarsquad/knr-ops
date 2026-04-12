@@ -93,7 +93,7 @@ spec:
     name: flux-system
   path: ./capi-mgmt/clusters
   dependsOn:
-    - name: infrastructure
+    - name: capi-providers
     - name: addons
 EOF
 

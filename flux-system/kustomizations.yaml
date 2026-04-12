@@ -1,5 +1,8 @@
 ---
-# ── Infrastructure: cert-manager → capi-operator → capi-providers ────────────
+# ── Infrastructure: cert-manager + capi-operator ─────────────────────────────
+# Installs the CAPI Operator, which itself installs the provider CRDs.
+# wait: true ensures the HelmReleases are fully rolled out (CRDs present)
+# before the capi-providers Kustomization is allowed to start.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -16,8 +19,29 @@ spec:
     name: flux-system
   path: ./capi-mgmt/infrastructure
 ---
+# ── CAPI Providers: CoreProvider, InfrastructureProvider, etc. ───────────────
+# Depends on infrastructure so the operator.cluster.x-k8s.io CRDs installed
+# by the CAPI Operator chart are present before these resources are dry-run.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: capi-providers
+  namespace: flux-system
+spec:
+  interval: 1h
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./capi-mgmt/capi-providers
+  dependsOn:
+    - name: infrastructure
+---
 # ── Addons: HelmChartProxy + ClusterResourceSet for workload clusters ─────────
-# Depends on infrastructure so that CAPI and CAAPH CRDs are present before
+# Depends on capi-providers so that CAAPH (AddonProvider) CRDs exist before
 # the HelmChartProxy and ClusterResourceSet manifests are applied.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -35,4 +59,4 @@ spec:
     name: flux-system
   path: ./capi-mgmt/addons
   dependsOn:
-    - name: infrastructure
+    - name: capi-providers
