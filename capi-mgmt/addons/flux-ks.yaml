@@ -1,7 +1,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: addons
+  name: flux-apps
   namespace: flux-system
 spec:
   interval: 5m
@@ -12,6 +12,6 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./capi-mgmt/addons
+  path: ./capi-mgmt/addons/flux-apps
   dependsOn:
     - name: caaph-system

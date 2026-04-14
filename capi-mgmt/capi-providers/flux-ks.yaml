@@ -33,6 +33,10 @@ spec:
   path: ./capi-mgmt/capi-providers/capa-system
   dependsOn:
     - name: capi-system
+  healthChecks:
+    - apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: awsmanagedcontrolplanes.controlplane.cluster.x-k8s.io
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
