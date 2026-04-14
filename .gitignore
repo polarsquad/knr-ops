@@ -3,3 +3,4 @@
 .env
 .aws/
 .copier-answers.yml
+.DS_Store

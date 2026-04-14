@@ -71,36 +71,36 @@ helm upgrade --install flux \
   --set instance.sync.provider=github
 
 # ── Step 5: Apply the clusters Kustomization CR ───────────────────────────────
-# Applied imperatively so it never enters the flux-system GitOps sync path.
+# Applied imperatively so it never enters the GitRepository sync path.
 # This prevents Flux from dry-running Cluster resources before the CAPI CRDs
-# exist. The clusters Kustomization depends on addons, which depends on
-# infrastructure, so ordering is still enforced via dependsOn at runtime.
-echo ">>> Waiting for Flux Kustomization CRD to be established..."
-kubectl wait --for=condition=Established \
-  crd/kustomizations.kustomize.toolkit.fluxcd.io \
-  --timeout=300s
+# exist. The clusters Kustomization depends on addons (after caaph so CAAPH
+# CRDs exist), which depends on infrastructure via dependsOn.
+# echo ">>> Waiting for Flux Kustomization CRD to be established..."
+# kubectl wait --for=condition=Established \
+#   crd/kustomizations.kustomize.toolkit.fluxcd.io \
+#   --timeout=300s
 
-echo ">>> Applying clusters Kustomization CR..."
-kubectl apply -f - <<'EOF'
----
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
-  name: clusters
-  namespace: flux-system
-spec:
-  interval: 1h
-  retryInterval: 2m
-  timeout: 5m
-  prune: true
-  sourceRef:
-    kind: GitRepository
-    name: flux-system
-  path: ./capi-mgmt/clusters
-  dependsOn:
-    - name: capi-providers
-    - name: addons
-EOF
+# echo ">>> Applying clusters Kustomization CR..."
+# kubectl apply -f - <<'EOF'
+# ---
+# apiVersion: kustomize.toolkit.fluxcd.io/v1
+# kind: Kustomization
+# metadata:
+#   name: clusters
+#   namespace: flux-system
+# spec:
+#   interval: 1h
+#   retryInterval: 2m
+#   timeout: 5m
+#   prune: true
+#   sourceRef:
+#     kind: GitRepository
+#     name: flux-system
+#   path: ./capi-mgmt/clusters
+#   dependsOn:
+#     - name: capi-providers
+#     - name: addons
+# EOF
 
 echo ""
 echo ">>> Bootstrap complete! Flux is now reconciling"

@@ -1,15 +1,3 @@
----
-# ── CAPI Operator HelmRepository ─────────────────────────────────────────────
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: capi-operator
-  namespace: flux-system
-spec:
-  interval: 12h
-  url: https://kubernetes-sigs.github.io/cluster-api-operator
----
-# ── CAPI Operator HelmRelease ────────────────────────────────────────────────
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:

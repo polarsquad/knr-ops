@@ -47,7 +47,7 @@ data:
         kind: GitRepository
         url: "https://github.com/polarsquad/krm-ops"
         ref: "refs/heads/main"
-        path: "workloads"
+        path: "capi-mgmt"
         pullSecret: "flux-github-app"
 ---
 # ══════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,42 @@
+# EKS feature gates are required for AWSManagedControlPlane and EKS node pools.
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: InfrastructureProvider
+metadata:
+  name: aws
+  namespace: capa-system
+spec:
+  version: "v2.10.2"
+  configSecret:
+    name: aws-credentials
+  fetchConfig:
+    selector:
+      matchLabels:
+        provider.cluster.x-k8s.io/name: aws
+  additionalManifests: {}
+  deployment:
+    containers:
+      - name: manager
+        args:
+          "--feature-gates": "EKS=true,EKSEnableIAM=true,EKSAllowAddRoles=true,MachinePool=true"
+---
+# ── EKS Bootstrap Provider ────────────────────────────────────────────────────
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: BootstrapProvider
+metadata:
+  name: aws-eks
+  namespace: capa-system
+spec:
+  version: "v2.10.2"
+  configSecret:
+    name: aws-credentials
+---
+# ── EKS Control Plane Provider ───────────────────────────────────────────────
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: ControlPlaneProvider
+metadata:
+  name: aws-eks
+  namespace: capa-system
+spec:
+  version: "v2.10.2"
+  configSecret:
+    name: aws-credentials
