@@ -59,7 +59,7 @@ apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: BootstrapProvider
 metadata:
   name: kubeadm
-  namespace: capi-kubeadm-bootstrap-system
+  namespace: capi-system
 spec:
   version: "v1.12.5"
 ---
@@ -68,7 +68,7 @@ apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: ControlPlaneProvider
 metadata:
   name: kubeadm
-  namespace: capi-kubeadm-control-plane-system
+  namespace: capi-system
 spec:
   version: "v1.12.5"
 ---
@@ -99,7 +99,7 @@ apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: BootstrapProvider
 metadata:
   name: aws-eks
-  namespace: capa-eks-bootstrap-system
+  namespace: capa-system
 spec:
   version: "v2.10.2"
   configSecret:
@@ -110,7 +110,7 @@ apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: ControlPlaneProvider
 metadata:
   name: aws-eks
-  namespace: capa-eks-control-plane-system
+  namespace: capa-system
 spec:
   version: "v2.10.2"
   configSecret:
