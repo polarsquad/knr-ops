@@ -75,6 +75,11 @@ helm upgrade --install flux \
 # This prevents Flux from dry-running Cluster resources before the CAPI CRDs
 # exist. The clusters Kustomization depends on addons, which depends on
 # infrastructure, so ordering is still enforced via dependsOn at runtime.
+echo ">>> Waiting for Flux Kustomization CRD to be established..."
+kubectl wait --for=condition=Established \
+  crd/kustomizations.kustomize.toolkit.fluxcd.io \
+  --timeout=300s
+
 echo ">>> Applying clusters Kustomization CR..."
 kubectl apply -f - <<'EOF'
 ---
