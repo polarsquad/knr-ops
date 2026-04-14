@@ -23,7 +23,7 @@ spec:
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: BootstrapProvider
 metadata:
-  name: aws-eks
+  name: aws-eks-bootstrap-provider
   namespace: capa-system
 spec:
   version: "v2.10.2"
@@ -34,7 +34,7 @@ spec:
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: ControlPlaneProvider
 metadata:
-  name: aws-eks
+  name: aws-eks-controlplane-provider
   namespace: capa-system
 spec:
   version: "v2.10.2"
