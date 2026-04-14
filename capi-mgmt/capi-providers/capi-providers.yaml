@@ -102,6 +102,8 @@ metadata:
   namespace: capa-eks-bootstrap-system
 spec:
   version: "v2.10.2"
+  configSecret:
+    name: aws-credentials
 ---
 # ── EKS Control Plane Provider ───────────────────────────────────────────────
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
@@ -111,6 +113,8 @@ metadata:
   namespace: capa-eks-control-plane-system
 spec:
   version: "v2.10.2"
+  configSecret:
+    name: aws-credentials
 ---
 # ── CAAPH – Helm Add-on Provider ─────────────────────────────────────────────
 # Enables HelmChartProxy and ClusterResourceSet resources used in addons/.
