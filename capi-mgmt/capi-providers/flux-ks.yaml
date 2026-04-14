@@ -8,13 +8,11 @@ spec:
   retryInterval: 2m
   timeout: 5m
   prune: true
-  wait: false
+  wait: true
   sourceRef:
     kind: GitRepository
     name: flux-system
   path: ./capi-mgmt/capi-providers/capi-system
-  dependsOn:
-    - name: infrastructure
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
