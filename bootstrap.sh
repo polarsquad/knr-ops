@@ -66,7 +66,7 @@ helm upgrade --install flux \
   --set instance.sync.kind=GitRepository \
   --set instance.sync.url="${GIT_REPO_URL}" \
   --set instance.sync.ref=refs/heads/main \
-  --set instance.sync.path=flux-system \
+  --set instance.sync.path=capi-mgmt \
   --set instance.sync.pullSecret=flux-github-app \
   --set instance.sync.provider=github
 
