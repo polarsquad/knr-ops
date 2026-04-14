@@ -3,8 +3,9 @@ go = "1.24"
 kubectl = "1.34"
 kind = "0.31"
 helm = "4.1"
-"clusterctl" = "1.12.5"
-"clusterawsadm" = "2.10.2"
+aws-cli = "latest"
+clusterctl = "1.12.5"
+clusterawsadm = "2.10.2"
 flux2 = "latest"
 
 [settings]
