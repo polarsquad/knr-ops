@@ -1,5 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namePrefix: eu-west-1-
+configurations:
+  - capi-nameref.yaml
 resources:
   - cluster.yaml
