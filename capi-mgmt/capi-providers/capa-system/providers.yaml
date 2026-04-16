@@ -8,11 +8,6 @@ spec:
   version: "v2.10.2"
   configSecret:
     name: aws-credentials
-  fetchConfig:
-    selector:
-      matchLabels:
-        provider.cluster.x-k8s.io/name: aws
-  additionalManifests: {}
   deployment:
     containers:
       - name: manager
