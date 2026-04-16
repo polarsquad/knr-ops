@@ -88,7 +88,7 @@ spec:
   taints:
     - key: nvidia.com/gpu
       value: "true"
-      effect: NoSchedule
+      effect: no-schedule
 
 ---
 # ══════════════════════════════════════════════════════════════════════════════
