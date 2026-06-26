@@ -7,6 +7,59 @@ aws-cli = "latest"
 clusterctl = "1.12.5"
 clusterawsadm = "2.10.2"
 flux2 = "latest"
+sops = "latest"
+age = "latest"
 
 [settings]
 env_file = ".env"
+
+[tasks.validate]
+description = "Build every kustomize overlay to catch structural/reference errors"
+run = """
+fail=0
+for dir in $(find capi-mgmt -name kustomization.yaml -exec dirname {} \\; | sort -u); do
+  echo "==> kustomize build $dir"
+  if ! kubectl kustomize "$dir" >/dev/null; then
+    echo "    FAILED: $dir" >&2
+    fail=1
+  fi
+done
+exit $fail
+"""
+
+[tasks.sops-keygen]
+description = "Generate an age keypair (age.agekey) for SOPS; prints the public key"
+run = """
+if [ -f age.agekey ]; then
+  echo "age.agekey already exists — refusing to overwrite. Delete it first to regenerate." >&2
+  exit 1
+fi
+age-keygen -o age.agekey
+echo
+echo "Add the public key above to the 'age:' field in .sops.yaml, then run 'mise run sops-updatekeys'."
+"""
+
+[tasks.sops-encrypt]
+description = "Encrypt a *.sops.yaml manifest in place (usage: mise run sops-encrypt <file>)"
+run = "sops --encrypt --in-place"
+
+[tasks.sops-decrypt]
+description = "Decrypt a *.sops.yaml manifest to stdout (usage: mise run sops-decrypt <file>)"
+run = "sops --decrypt"
+
+[tasks.sops-updatekeys]
+description = "Re-encrypt all *.sops.yaml files to match recipients in .sops.yaml"
+run = """
+for f in $(find capi-mgmt -name '*.sops.yaml'); do
+  echo "==> updatekeys $f"
+  sops updatekeys --yes "$f"
+done
+"""
+
+[tasks.bootstrap]
+description = "Bootstrap the kind management cluster and hand off to Flux"
+run = "./bootstrap.sh"
+
+[tasks.teardown]
+description = "Tear down all infrastructure created by bootstrap"
+run = "./teardown.sh"

@@ -1,0 +1,12 @@
+# SOPS configuration. Encrypts only the `data`/`stringData` fields of any
+# manifest named `*.sops.yaml` under capi-mgmt/, leaving keys/metadata readable.
+#
+# The `age` recipient below is a PUBLIC key — safe to commit. The matching
+# PRIVATE key lives in `age.agekey` (gitignored) and is loaded into the cluster
+# as the `sops-age` secret by bootstrap.sh so Flux can decrypt on reconcile.
+#
+# To rotate or add recipients, edit this file and run:  mise run sops-updatekeys
+creation_rules:
+  - path_regex: capi-mgmt/.*\.sops\.yaml$
+    encrypted_regex: "^(data|stringData)$"
+    age: age18lcxc28qak3y4ssreqln7lpzt04ddfh5pavnwglnpxe8et2s4pvqyw25yt

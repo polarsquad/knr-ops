@@ -13,6 +13,18 @@ done
 : "${GITHUB_APP_PRIVATE_KEY:?GITHUB_APP_PRIVATE_KEY must be set (path to .pem file)}"
 : "${GIT_REPO_URL:?GIT_REPO_URL must be set}"
 
+# ── SOPS age key ──────────────────────────────────────────────────────────────
+# Flux decrypts SOPS-encrypted secrets in Git (e.g. the CAPA AWS credentials)
+# using an age private key loaded into the cluster as the `sops-age` secret.
+# AGE_KEY_FILE defaults to ./age.agekey (gitignored).
+AGE_KEY_FILE="${AGE_KEY_FILE:-age.agekey}"
+if [ ! -f "$AGE_KEY_FILE" ]; then
+  echo "ERROR: age key file not found at '$AGE_KEY_FILE'." >&2
+  echo "       Generate one with:  mise run sops-keygen" >&2
+  echo "       and add its PUBLIC key to .sops.yaml. See README.md." >&2
+  exit 1
+fi
+
 # ── Step 1: Create the kind management cluster ────────────────────────────────
 echo ">>> Creating kind cluster 'capi-mgmt'..."
 kind create cluster --name capi-mgmt --config - <<'EOF'
@@ -52,6 +64,16 @@ kubectl create secret generic flux-github-app \
   --from-literal=githubAppInstallationID="${GITHUB_APP_INSTALLATION_ID}" \
   --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY}"
 
+# ── Step 3b: Create SOPS age decryption key secret ────────────────────────────
+# Flux's kustomize-controller uses this key to decrypt *.sops.yaml manifests
+# (such as the CAPA AWS credentials) during reconciliation. The data key must
+# end in `.agekey` for Flux to recognise it.
+echo ">>> Creating sops-age decryption secret in flux-system..."
+kubectl create secret generic sops-age \
+  --namespace flux-system \
+  --from-file=age.agekey="${AGE_KEY_FILE}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 # ── Step 4: Install the FluxInstance via Helm to start GitOps reconciliation ──
 echo ">>> Installing FluxInstance via Helm..."
 helm upgrade --install flux \
@@ -70,37 +92,11 @@ helm upgrade --install flux \
   --set instance.sync.pullSecret=flux-github-app \
   --set instance.sync.provider=github
 
-# ── Step 5: Apply the clusters Kustomization CR ───────────────────────────────
-# Applied imperatively so it never enters the GitRepository sync path.
-# This prevents Flux from dry-running Cluster resources before the CAPI CRDs
-# exist. The clusters Kustomization depends on addons (after caaph so CAAPH
-# CRDs exist), which depends on infrastructure via dependsOn.
-# echo ">>> Waiting for Flux Kustomization CRD to be established..."
-# kubectl wait --for=condition=Established \
-#   crd/kustomizations.kustomize.toolkit.fluxcd.io \
-#   --timeout=300s
-
-# echo ">>> Applying clusters Kustomization CR..."
-# kubectl apply -f - <<'EOF'
-# ---
-# apiVersion: kustomize.toolkit.fluxcd.io/v1
-# kind: Kustomization
-# metadata:
-#   name: clusters
-#   namespace: flux-system
-# spec:
-#   interval: 1h
-#   retryInterval: 2m
-#   timeout: 5m
-#   prune: true
-#   sourceRef:
-#     kind: GitRepository
-#     name: flux-system
-#   path: ./capi-mgmt/clusters
-#   dependsOn:
-#     - name: capi-providers
-#     - name: addons
-# EOF
-
+# ── Done ──────────────────────────────────────────────────────────────────────
+# Everything else is driven by GitOps. The FluxInstance above syncs the
+# capi-mgmt/ directory, whose top-level kustomization.yaml wires in the
+# infrastructure, capi-providers, addons, and clusters Kustomizations with
+# the correct dependsOn ordering. No further imperative steps are required.
 echo ""
-echo ">>> Bootstrap complete! Flux is now reconciling"
+echo ">>> Bootstrap complete! Flux is now reconciling from ${GIT_REPO_URL}"
+echo ">>> Watch progress with: flux get kustomizations --watch"

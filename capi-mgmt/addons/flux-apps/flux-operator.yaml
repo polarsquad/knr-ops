@@ -15,6 +15,7 @@ spec:
       fluxcd: enabled
   repoURL: oci://ghcr.io/controlplaneio-fluxcd/charts
   chartName: flux-operator
+  version: "0.52.0"
   namespace: flux-system
   options:
     waitForJobs: true

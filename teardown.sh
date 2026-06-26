@@ -8,7 +8,7 @@
 #   4. Delete CAPI providers (operator deprovisions controllers)
 #   5. Uninstall the FluxInstance Helm release
 #   6. Uninstall the Flux Operator Helm release
-#   7. Delete the GitHub App credentials secret
+#   7. Delete the GitHub App, SOPS age, and AWS credentials secrets
 #   8. Delete the kind management cluster
 set -euo pipefail
 
@@ -171,9 +171,13 @@ else
 fi
 
 # ── Step 7: Delete the GitHub App credentials secret ─────────────────────────
-info "Deleting GitHub App credentials secret..."
+info "Deleting GitHub App and SOPS age secrets..."
 kubectl delete secret flux-github-app -n flux-system --ignore-not-found
-success "Secret deleted (or was already absent)"
+kubectl delete secret sops-age -n flux-system --ignore-not-found
+# The aws-credentials secret is GitOps-managed (decrypted by Flux), but remove
+# it explicitly in case Flux was uninstalled before it could be pruned.
+kubectl delete secret aws-credentials -n capa-system --ignore-not-found
+success "Secrets deleted (or were already absent)"
 
 # ── Step 8: Delete the kind management cluster ────────────────────────────────
 # Handled by the EXIT trap registered at the top of the script, so it always

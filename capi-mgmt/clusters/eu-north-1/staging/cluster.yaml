@@ -57,11 +57,11 @@ metadata:
   name: workload-gpu
   namespace: default
 spec:
-  clusterName: workload-gpu
+  clusterName: workload
   replicas: 1
   template:
     spec:
-      clusterName: workload-gpu
+      clusterName: workload
       bootstrap:
         dataSecretName: ""
       infrastructureRef:
@@ -100,11 +100,11 @@ metadata:
   name: workload-arm
   namespace: default
 spec:
-  clusterName: workload-arm
+  clusterName: workload
   replicas: 3
   template:
     spec:
-      clusterName: workload-arm
+      clusterName: workload
       bootstrap:
         dataSecretName: ""
       infrastructureRef:
