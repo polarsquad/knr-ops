@@ -46,7 +46,6 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 | [docs/secrets.md](docs/secrets.md) | SOPS + age secret management, key setup, credential rotation |
 | [docs/operations.md](docs/operations.md) | Prerequisites, AWS service quotas, configuration, bootstrap, verification, teardown, validation |
 | [docs/extending.md](docs/extending.md) | Adding a workload cluster, adding apps to the workload clusters |
-| [docs/NOTES.md](docs/NOTES.md) | Scratchpad for detailed operational notes |
 
 ## Repository layout
 
