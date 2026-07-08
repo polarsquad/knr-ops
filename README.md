@@ -1,7 +1,14 @@
 # knr-ops
+## kubernetes-native resource operations
 
-GitOps-driven [Cluster API](https://cluster-api.sigs.k8s.io/) (CAPI) management
-platform. A local [kind](https://kind.sigs.k8s.io/) cluster bootstraps
+A GitOps-driven [Cluster API](https://cluster-api.sigs.k8s.io/) (CAPI) management
+platform. 
+
+After a one-time bootstrap, everything is declared in Git as yaml — no scripts, no terraform and no imperative AWS setup.
+
+1 CAPI Cluster creates: 4 Clusters, 4 Node Pools, 2 Regions, 2 S3 buckets, 2 RDS instances, 1 User, 1 Role
+
+Starts with a local [kind](https://kind.sigs.k8s.io/) cluster bootstraps
 [Flux](https://fluxcd.io/), which then reconciles everything else from this
 repository — AWS EKS workload clusters provisioned via
 [CAPA](https://cluster-api-aws.sigs.k8s.io/), per-cluster Flux instances
@@ -10,8 +17,12 @@ delivered through CAPI addons, and application workloads (the
 managing secure S3 buckets, PostgreSQL instances, and read-only IAM roles)
 running on each workload cluster.
 
-After the one-time bootstrap, **everything is declared in Git** — no scripts,
-no imperative AWS setup for workloads.
+## Prerequisites
+
+- Docker
+- GitHub App
+- AWS credentials and quotas established
+- Mise
 
 ## Quickstart
 
@@ -24,10 +35,6 @@ flux get kustomizations --watch
 mise run validate           # build every kustomize overlay (mirrors CI)
 mise run teardown           # full teardown (EKS, AWS resources, kind)
 ```
-
-Prerequisites (Docker, a GitHub App, AWS credentials and quotas, the
-`clusterawsadm` CloudFormation stack) and the full bootstrap/verify/teardown
-walkthrough are in [docs/operations.md](docs/operations.md).
 
 ## Documentation
 
