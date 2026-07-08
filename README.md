@@ -6,7 +6,7 @@ platform.
 
 After a one-time bootstrap, everything is declared in Git as yaml — no scripts, no terraform and no imperative AWS setup.
 
-1 CAPI Cluster creates: 4 Clusters, 4 Node Pools, 2 Regions, 2 S3 buckets, 2 RDS instances, 1 User, 1 Role
+1 CAPI Cluster creates: 2 Clusters, 4 Node Pools, 2 Regions, 2 S3 buckets, 2 RDS instances, 1 User, 1 Role
 
 Starts with a local [kind](https://kind.sigs.k8s.io/) cluster bootstraps
 [Flux](https://fluxcd.io/), which then reconciles everything else from this
