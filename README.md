@@ -1,7 +1,7 @@
 # knr-ops
 ## kubernetes-native resource operations
 
-This is a method of using Kubernetes-native resource to manage cloud-infrastucture and workloads all a monorepo using GitOps. The idea here is HCL is no longer a barrier to infrastructure for Kubernetes.
+This is a method of using Kubernetes-native resources to manage cloud-infrastucture and workloads all from a monorepo using Flux CD for GitOps. The idea here is that IaC doesn't have to be complicated or require expensive tools.
 
 After a one-time bootstrap, everything is declared in Git as yaml — no scripts, no terraform and no imperative AWS setup.
 
