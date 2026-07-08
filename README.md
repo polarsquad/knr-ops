@@ -1,8 +1,7 @@
 # knr-ops
 ## kubernetes-native resource operations
 
-This repository is an example of a GitOps-driven [Cluster API](https://cluster-api.sigs.k8s.io/) (CAPI) management
-platform. 
+This is a method of using Kubernetes-native resource to manage cloud-infrastucture and workloads all a monorepo using GitOps. The idea here is HCL is no longer a barrier to infrastructure for Kubernetes.
 
 After a one-time bootstrap, everything is declared in Git as yaml — no scripts, no terraform and no imperative AWS setup.
 
