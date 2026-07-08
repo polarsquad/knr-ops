@@ -1,11 +1,13 @@
 # knr-ops
 ## kubernetes-native resource operations
 
-This is a method of using Kubernetes-native resources to manage cloud-infrastucture and workloads all from a monorepo using Flux CD for GitOps. The idea here is that IaC doesn't have to be complicated or require expensive tools.
+This is a method of using Kubernetes-native resources to manage cloud-infrastucture and workloads all from a monorepo using Flux CD for GitOps. The idea here is that IaC doesn't have to be complicated, use DSL, or require expensive tools.
 
-After a one-time bootstrap, everything is declared in Git as yaml — no scripts, no terraform and no imperative AWS setup.
+After a one-time bootstrap, everything is declared in Git as yaml.
 
 1 CAPI Cluster creates: 2 Clusters, 4 Node Pools, 2 Regions, 2 S3 buckets, 2 RDS instances, 1 User, 1 Role
+
+0 HCL, 0 statefiles, just pure yaml and GitOps.
 
 Starts with a local [kind](https://kind.sigs.k8s.io/) cluster bootstraps
 [Flux](https://fluxcd.io/), which then reconciles everything else from this
