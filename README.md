@@ -1,7 +1,7 @@
 # knr-ops
 ## kubernetes-native resource operations
 
-A GitOps-driven [Cluster API](https://cluster-api.sigs.k8s.io/) (CAPI) management
+This repository is an example of a GitOps-driven [Cluster API](https://cluster-api.sigs.k8s.io/) (CAPI) management
 platform. 
 
 After a one-time bootstrap, everything is declared in Git as yaml — no scripts, no terraform and no imperative AWS setup.
