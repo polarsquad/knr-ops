@@ -1,0 +1,56 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  kustomize-build:
+    name: Build kustomize overlays
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+
+      - name: Build every overlay
+        run: |
+          fail=0
+          for dir in $(find capi-mgmt -name kustomization.yaml -exec dirname {} \; | sort -u); do
+            echo "==> kustomize build $dir"
+            if ! kustomize build "$dir" >/dev/null; then
+              echo "    FAILED: $dir" >&2
+              fail=1
+            fi
+          done
+          exit $fail
+
+  yaml-lint:
+    name: Lint YAML
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: capi-mgmt
+          config_data: |
+            extends: default
+            ignore: |
+              *.sops.yaml
+            rules:
+              line-length: disable
+              document-start: disable
+              comments:
+                min-spaces-from-content: 1
+              indentation:
+                spaces: consistent
+                indent-sequences: consistent

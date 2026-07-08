@@ -1,0 +1,139 @@
+---
+# ── EKS Cluster ──────────────────────────────────────────────────────────────
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: workload
+  namespace: default
+  labels:
+    fluxcd: enabled
+    region: eu-north-1
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 192.168.0.0/16
+    services:
+      cidrBlocks:
+        - 10.128.0.0/12
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedControlPlane
+    name: workload-control-plane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedCluster
+    name: eu-north-1-workload
+---
+# ── EKS Managed Control Plane ────────────────────────────────────────────────
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: workload-control-plane
+  namespace: default
+spec:
+  region: eu-north-1
+  version: "1.34.6"
+  endpointAccess:
+    public: true
+    private: true
+  addons:
+    - name: vpc-cni
+      version: v1.21.1-eksbuild.7
+      conflictResolution: overwrite
+    - name: coredns
+      version: v1.13.2-eksbuild.4
+      conflictResolution: overwrite
+    - name: kube-proxy
+      version: v1.34.6-eksbuild.2
+      conflictResolution: overwrite
+    # Required for ACK controllers to authenticate via EKS Pod Identity
+    # (associations are created by capi-mgmt/infrastructure/ack-pod-identity/)
+    - name: eks-pod-identity-agent
+      version: v1.3.10-eksbuild.3
+      conflictResolution: overwrite
+
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# Node Pool 1: GPU – single cheapest NVIDIA GPU instance (g4dn.xlarge, 1x T4)
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: workload-gpu
+  namespace: default
+spec:
+  clusterName: workload
+  replicas: 1
+  template:
+    spec:
+      clusterName: workload
+      bootstrap:
+        dataSecretName: ""
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: workload-gpu
+      version: "1.34.6"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedMachinePool
+metadata:
+  name: workload-gpu
+  namespace: default
+spec:
+  instanceType: g4dn.xlarge
+  scaling:
+    minSize: 1
+    maxSize: 2
+  amiType: AL2023_x86_64_NVIDIA
+  capacityType: onDemand
+  labels:
+    node.kubernetes.io/gpu: "true"
+    nvidia.com/gpu.present: "true"
+  taints:
+    - key: nvidia.com/gpu
+      value: "true"
+      effect: no-schedule
+
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# Node Pool 2: ARM – 3 highly-available Graviton nodes (t4g.medium)
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: workload-arm
+  namespace: default
+spec:
+  clusterName: workload
+  replicas: 3
+  template:
+    spec:
+      clusterName: workload
+      bootstrap:
+        dataSecretName: ""
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: workload-arm
+      version: "1.34.6"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedMachinePool
+metadata:
+  name: workload-arm
+  namespace: default
+spec:
+  instanceType: t4g.medium
+  scaling:
+    minSize: 3
+    maxSize: 5
+  amiType: AL2023_ARM_64_STANDARD
+  capacityType: onDemand
+  availabilityZones:
+    - eu-north-1a
+    - eu-north-1b
+    - eu-north-1c
+  labels:
+    node.kubernetes.io/arch: arm64

@@ -1,0 +1,14 @@
+.wip/*
+.setup/*
+.env
+.aws/
+.copier-answers.yml
+.DS_Store
+
+# Secrets — never commit these
+*.pem
+github-app-private-key.pem
+
+# SOPS age PRIVATE key — the public key in .sops.yaml is safe to commit
+*.agekey
+age.agekey

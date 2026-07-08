@@ -1,0 +1,103 @@
+[tools]
+go = "1.24"
+kubectl = "1.34"
+kind = "0.31"
+helm = "4.1"
+aws-cli = "latest"
+clusterctl = "1.12.5"
+clusterawsadm = {version = "2.10.2", binary = "clusterawsadm"}
+flux2 = "latest"
+sops = "latest"
+age = "latest"
+
+[settings]
+env_file = ".env"
+
+[tasks.validate]
+description = "Build every kustomize overlay to catch structural/reference errors"
+run = '''
+fail=0
+for dir in $(find capi-mgmt apps -name kustomization.yaml -exec dirname {} \; | sort -u); do
+  echo "==> kustomize build $dir"
+  if ! kubectl kustomize "$dir" >/dev/null; then
+    echo "    FAILED: $dir" >&2
+    fail=1
+  fi
+done
+exit $fail
+'''
+
+[tasks.sops-keygen]
+description = "Generate an age keypair (age.agekey) for SOPS; prints the public key"
+run = """
+if [ -f age.agekey ]; then
+  echo "age.agekey already exists — refusing to overwrite. Delete it first to regenerate." >&2
+  exit 1
+fi
+age-keygen -o age.agekey
+echo
+PUBLIC_KEY=$(age-keygen -p age.agekey 2>/dev/null | head -1)
+echo "Public key: $PUBLIC_KEY"
+echo "Add this public key to the 'age:' field in .sops.yaml, then run: mise run sops-updatekeys"
+"""
+
+[tasks.sops-encrypt]
+description = "Encrypt a *.sops.yaml manifest in place (usage: mise run sops-encrypt <file>)"
+run = "sops --encrypt --in-place --input-type yaml --output-type yaml"
+
+[tasks.sops-decrypt]
+description = "Decrypt a *.sops.yaml manifest to stdout (usage: mise run sops-decrypt <file>)"
+run = "sops --decrypt --input-type yaml --output-type yaml"
+
+[tasks.sops-updatekeys]
+description = "Re-encrypt all *.sops.yaml files to match recipients in .sops.yaml"
+run = """
+for f in $(find capi-mgmt -name '*.sops.yaml'); do
+  echo "==> updatekeys $f"
+  sops updatekeys --yes "$f"
+done
+"""
+
+[tasks.bootstrap]
+description = "Bootstrap the kind management cluster and hand off to Flux"
+run = "./bootstrap.sh"
+
+[tasks.aws-bootstrap]
+description = "Provision the clusterawsadm IAM CloudFormation stack for CAPA"
+run = "clusterawsadm bootstrap iam create-cloudformation-stack --region ${AWS_REGION:-eu-north-1}"
+
+[tasks.aws-credentials]
+description = "Export AWS credentials as a profile string for SOPS-encrypted secrets"
+run = "clusterawsadm bootstrap credentials encode-as-profile"
+
+[tasks.teardown]
+description = "Tear down all infrastructure created by bootstrap"
+run = "./teardown.sh"
+
+[tasks.kubeconfigs]
+description = "Export workload-cluster kubeconfigs to ~/.kube/knr-ops-workloads.yaml (use: export KUBECONFIG=~/.kube/knr-ops-workloads.yaml)"
+run = '''
+KUBECONFIG_FILE="${KUBECONFIG_FILE:-$HOME/.kube/knr-ops-workloads.yaml}"
+fail=0
+# Regions are discovered from the cluster definitions in Git.
+for region in $(find capi-mgmt/clusters -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort); do
+  cluster="default_${region}-workload-control-plane"
+  alias="${region}-workload"
+  echo "==> ${region}: ${cluster} -> context '${alias}'"
+  if ! aws eks update-kubeconfig \
+      --name "$cluster" \
+      --region "$region" \
+      --kubeconfig "$KUBECONFIG_FILE" \
+      --alias "$alias"; then
+    echo "    FAILED: ${cluster} (${region}) — cluster not provisioned yet?" >&2
+    fail=1
+  fi
+done
+chmod 600 "$KUBECONFIG_FILE" 2>/dev/null || true
+echo
+KUBECONFIG="$KUBECONFIG_FILE" kubectl config get-contexts
+echo
+echo "Use with:  export KUBECONFIG=$KUBECONFIG_FILE"
+echo "Or merged: export KUBECONFIG=$HOME/.kube/config:$KUBECONFIG_FILE"
+exit $fail
+'''

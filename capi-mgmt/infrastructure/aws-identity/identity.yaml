@@ -1,0 +1,13 @@
+# ────────────────────────────────────────────────────────────────────────────────
+# AWSClusterControllerIdentity – lets CAPA authenticate with AWS using the
+# credentials already mounted in the controller (capa-manager-bootstrap-credentials)
+# ═══════════════════════════════════════════════════════════════════════════════
+# CAPA v1beta2 API only supports allowedNamespaces. The actual credentials are
+# provided via the capa-manager-bootstrap-credentials secret mounted as a volume.
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSClusterControllerIdentity
+metadata:
+  name: default
+  namespace: default
+spec:
+  allowedNamespaces: {}

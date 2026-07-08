@@ -1,0 +1,159 @@
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# Per-cluster FluxInstance ConfigMaps, applied to each workload cluster by the
+# ClusterResourceSets below.
+#
+# Each workload cluster runs its own Flux instance syncing the apps/ overlay
+# for its region (apps/eu-north-01, apps/eu-west-01). Those overlays pull in
+# apps/base, which installs the ACK S3 operator and the Bucket CRs.
+#
+# Each ConfigMap also ships a `cluster-vars` ConfigMap into flux-system on the
+# workload cluster; the aws-operators / s3-buckets Flux Kustomizations use it
+# for postBuild variable substitution (region, cluster name, account ID).
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-instance-eu-north-1
+  namespace: default
+data:
+  flux-instance.yaml: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: flux-system
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: cluster-vars
+      namespace: flux-system
+    data:
+      AWS_REGION: "eu-north-1"
+      CLUSTER_NAME: "eu-north-1-workload"
+      AWS_ACCOUNT_ID: "120392301094"
+    ---
+    apiVersion: fluxcd.controlplane.io/v1
+    kind: FluxInstance
+    metadata:
+      name: flux
+      namespace: flux-system
+      annotations:
+        fluxcd.controlplane.io/reconcileEvery: "1h"
+        fluxcd.controlplane.io/reconcileTimeout: "5m"
+    spec:
+      distribution:
+        version: "2.x"
+        registry: "ghcr.io/fluxcd"
+        artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests"
+      components:
+        - source-controller
+        - kustomize-controller
+        - helm-controller
+        - notification-controller
+      cluster:
+        type: kubernetes
+        size: small
+        multitenant: false
+        networkPolicy: true
+        domain: "cluster.local"
+      sync:
+        kind: GitRepository
+        url: "https://github.com/polarsquad/knr-ops"
+        ref: "refs/heads/main"
+        path: "apps/eu-north-01"
+        pullSecret: "flux-github-app"
+        provider: "github"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-instance-eu-west-1
+  namespace: default
+data:
+  flux-instance.yaml: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: flux-system
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: cluster-vars
+      namespace: flux-system
+    data:
+      AWS_REGION: "eu-west-1"
+      CLUSTER_NAME: "eu-west-1-workload"
+      AWS_ACCOUNT_ID: "120392301094"
+    ---
+    apiVersion: fluxcd.controlplane.io/v1
+    kind: FluxInstance
+    metadata:
+      name: flux
+      namespace: flux-system
+      annotations:
+        fluxcd.controlplane.io/reconcileEvery: "1h"
+        fluxcd.controlplane.io/reconcileTimeout: "5m"
+    spec:
+      distribution:
+        version: "2.x"
+        registry: "ghcr.io/fluxcd"
+        artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests"
+      components:
+        - source-controller
+        - kustomize-controller
+        - helm-controller
+        - notification-controller
+      cluster:
+        type: kubernetes
+        size: small
+        multitenant: false
+        networkPolicy: true
+        domain: "cluster.local"
+      sync:
+        kind: GitRepository
+        url: "https://github.com/polarsquad/knr-ops"
+        ref: "refs/heads/main"
+        path: "apps/eu-west-01"
+        pullSecret: "flux-github-app"
+        provider: "github"
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# ClusterResourceSets: apply the per-region FluxInstance ConfigMap and the
+# GitHub App pull secret (flux-pull-secret.sops.yaml, SOPS-encrypted) to each
+# workload cluster, selected by the `region` label on the Cluster resource.
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: flux-instance-eu-north-1
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      fluxcd: enabled
+      region: eu-north-1
+  strategy: ApplyOnce
+  resources:
+    - kind: ConfigMap
+      name: flux-instance-eu-north-1
+    - kind: Secret
+      name: flux-pull-secret
+---
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: flux-instance-eu-west-1
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      fluxcd: enabled
+      region: eu-west-1
+  strategy: ApplyOnce
+  resources:
+    - kind: ConfigMap
+      name: flux-instance-eu-west-1
+    - kind: Secret
+      name: flux-pull-secret

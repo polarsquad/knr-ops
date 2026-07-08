@@ -1,0 +1,16 @@
+# EKS feature gates are required for AWSManagedControlPlane and EKS node pools.
+# CAPA v2.10.2 bundles infrastructure, bootstrap, and control plane into one manifest.
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: InfrastructureProvider
+metadata:
+  name: aws
+  namespace: capa-system
+spec:
+  version: "v2.10.2"
+  configSecret:
+    name: aws-credentials
+  deployment:
+    containers:
+      - name: manager
+        args:
+          "--feature-gates": "EKS=true,EKSEnableIAM=true,EKSAllowAddRoles=true,MachinePool=true"
