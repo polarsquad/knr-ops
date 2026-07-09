@@ -15,7 +15,7 @@ flowchart TD
     subgraph bootstrap["Bootstrap (one-time, bootstrap.sh)"]
         KIND[kind cluster: capi-mgmt]
         HELM[Helm: flux-operator + FluxInstance]
-        SEC[Secrets: flux-github-app + sops-age]
+        SEC[Secrets: flux-github-pat + sops-age]
         KIND --> HELM
         KIND --> SEC
     end

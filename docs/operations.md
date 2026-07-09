@@ -15,8 +15,9 @@ This provides `kubectl`, `kind`, `helm`, `flux`, `clusterctl`, `clusterawsadm`,
 You also need:
 
 - A running Docker daemon (for kind).
-- A GitHub App with read access to this repository (App ID, Installation ID,
-  and a private key `.pem`).
+- A GitHub personal access token (PAT) with read access to this repository
+  (fine-grained with read-only Contents permission, or classic with `repo`
+  scope).
 - AWS credentials with permission to create EKS clusters, VPCs, and IAM roles.
   For the ACK controllers the same principal additionally needs
   `iam:CreateRole`/`PutRolePolicy`/`GetRole`/`TagRole`,
@@ -68,7 +69,7 @@ This is the only imperative step. It:
 
 1. Creates the `capi-mgmt` kind cluster.
 2. Installs the Flux Operator (Helm).
-3. Creates the `flux-github-app` secret (for Git access) and the `sops-age`
+3. Creates the `flux-github-pat` secret (for Git access) and the `sops-age`
    secret (the age private key Flux uses to decrypt SOPS-encrypted secrets).
 4. Installs a `FluxInstance` that syncs `capi-mgmt/` and hands off to GitOps.
 
