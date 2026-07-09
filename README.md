@@ -9,7 +9,7 @@ After a one-time bootstrap, everything is declared in Git as yaml.
 
 0 HCL, 0 statefiles, just pure yaml and GitOps.
 
-Starts with a local [kind](https://kind.sigs.k8s.io/) cluster bootstraps
+Starts with a local [kind](https://kind.sigs.k8s.io/) cluster that bootstraps
 [Flux](https://fluxcd.io/), which then reconciles everything else from this
 repository — AWS EKS workload clusters provisioned via
 [CAPA](https://cluster-api-aws.sigs.k8s.io/), per-cluster Flux instances
