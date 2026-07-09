@@ -20,10 +20,9 @@ running on each workload cluster.
 
 ## Prerequisites
 
-- Docker
+- Mise
 - GitHub App
 - AWS credentials and quotas established
-- Mise
 
 ## Quickstart
 
