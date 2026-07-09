@@ -38,7 +38,7 @@ GLOBAL_IAM_ROLES="knr-ops-ack-s3-controller knr-ops-ack-rds-controller knr-ops-a
 # cluster's ACK IAM controller (capi-mgmt/infrastructure/aws-global-iam/
 # reader-user.yaml). Users need different cleanup than roles: login profile
 # (console password) + inline policies + the user itself.
-GLOBAL_IAM_USERS="knr-ops-reader"
+GLOBAL_IAM_USERS="knr-ops-read-user"
 
 # CloudFormation stack created by clusterawsadm bootstrap iam
 CFN_STACK_NAME="cluster-api-provider-aws-sigs-k8s-io"
@@ -714,7 +714,7 @@ fi
 #   4g. IAM roles + users          – CAPA per-cluster roles (prefix sweep)
 #                                   + ACK controller roles
 #                                   + ACK-created knr-ops-*-reader roles
-#                                   + the knr-ops-reader console user
+#                                   + the knr-ops-read-user console user
 #   4h. CloudFormation stack       – clusterawsadm bootstrap stack
 
 step_aws_cleanup() {

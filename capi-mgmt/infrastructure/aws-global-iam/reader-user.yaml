@@ -15,7 +15,7 @@
 # LoginProfile resource in the ACK IAM controller). After the user is
 # reconciled, set the console password ONCE imperatively:
 #
-#   aws iam create-login-profile --user-name knr-ops-reader \
+#   aws iam create-login-profile --user-name knr-ops-read-user \
 #     --password '<initial-password>' --password-reset-required
 #
 # See the "Console access" section in docs/aws-iam.md.
@@ -23,12 +23,12 @@
 apiVersion: iam.services.k8s.aws/v1alpha1
 kind: User
 metadata:
-  name: reader-user
+  name: knr-ops-read-user
   namespace: ack-system
 spec:
-  name: knr-ops-reader
+  name: knr-ops-read-user-user
   inlinePolicies:
-    assume-knr-ops-reader-roles: |
+    assume-knr-ops-read-user-roles: |
       {
         "Version": "2012-10-17",
         "Statement": [
@@ -36,7 +36,7 @@ spec:
             "Sid": "AssumeKnrOpsReaderRoles",
             "Effect": "Allow",
             "Action": "sts:AssumeRole",
-            "Resource": "arn:aws:iam::*:role/knr-ops-*-reader"
+            "Resource": "arn:aws:iam::*:role/knr-ops-*-read-user"
           }
         ]
       }

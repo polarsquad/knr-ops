@@ -47,7 +47,7 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 | Page | Contents |
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | Architecture diagram, reconciliation order, how workload apps are delivered |
-| [docs/aws-iam.md](docs/aws-iam.md) | EKS Pod Identity, ACK controller IAM roles, per-cluster reader roles, the `knr-ops-reader` console user |
+| [docs/aws-iam.md](docs/aws-iam.md) | EKS Pod Identity, ACK controller IAM roles, per-cluster reader roles, the `knr-ops-read-user` console user |
 | [docs/workload-resources.md](docs/workload-resources.md) | S3 bucket security posture, RDS instances, known limitations |
 | [docs/konflate.md](docs/konflate.md) | Rendered Flux PR review: in-cluster konflate instance, write-back to PRs, tokens |
 | [docs/secrets.md](docs/secrets.md) | SOPS + age secret management, key setup, credential rotation |

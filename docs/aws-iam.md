@@ -52,11 +52,11 @@ over one role:
   RDS instances (`rds:DescribeDBInstances`, `rds:ListTagsForResource` —
   only Describe actions that support resource-level scoping)
 
-## Console access: the `knr-ops-reader` IAM user
+## Console access: the `knr-ops-read-user` IAM user
 
 `capi-mgmt/infrastructure/aws-iam/reader-user.yaml` has the
 **management** cluster's ACK IAM controller create one IAM `User`
-(`knr-ops-reader`) whose only permission is `sts:AssumeRole` on
+(`knr-ops-read-user`) whose only permission is `sts:AssumeRole` on
 `arn:aws:iam::*:role/knr-ops-*-reader` — it can see nothing directly and is
 just a doorway into the per-cluster reader roles above.
 
@@ -65,14 +65,14 @@ password cannot be declared in Git. Set it **once** imperatively after the
 user has been reconciled:
 
 ```sh
-aws iam create-login-profile --user-name knr-ops-reader \
+aws iam create-login-profile --user-name knr-ops-read-user \
   --password '<initial-password>' --password-reset-required
 ```
 
 Then, to browse the repo-created resources in the AWS console:
 
 1. Sign in at `https://<account-id>.signin.aws.amazon.com/console` as
-   `knr-ops-reader` (you will be prompted to set a new password on first
+   `knr-ops-read-user` (you will be prompted to set a new password on first
    login).
 2. Use **Switch Role** (account menu, top right) with the account ID and role
    name `knr-ops-eu-north-1-workload-reader` or

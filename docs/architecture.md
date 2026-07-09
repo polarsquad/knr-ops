@@ -37,7 +37,7 @@ flowchart TD
         CAAPH[caaph-system]
         ACKC["ack-controllers (SOPS creds)<br/>ACK IAM + EKS controllers"]
         ACKPI["ack-pod-identity<br/>IAM Role + PodIdentityAssociations"]
-        AWSIAM["aws-iam<br/>knr-ops-reader console user"]
+        AWSIAM["aws-iam<br/>knr-ops-read-user console user"]
         KONF["konflate (SOPS token)<br/>rendered Flux PR review"]
         EUN[eu-north-1 cluster def]
         EUW[eu-west-1 cluster def]
@@ -67,7 +67,7 @@ flowchart TD
         DB2[(RDS: knr-ops-eu-west-1-workload-db)]
         RD1[IAM Role: knr-ops-eu-north-1-workload-reader<br/>trust: account root]
         RD2[IAM Role: knr-ops-eu-west-1-workload-reader<br/>trust: account root]
-        RUSER[IAM User: knr-ops-reader<br/>console login, assumes reader roles]
+        RUSER[IAM User: knr-ops-read-user<br/>console login, assumes reader roles]
     end
 
     EUN -->|CAPA provisions| EKS1

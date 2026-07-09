@@ -22,7 +22,7 @@ You also need:
   For the ACK controllers the same principal additionally needs
   `iam:CreateRole`/`PutRolePolicy`/`GetRole`/`TagRole`,
   `iam:CreateUser`/`PutUserPolicy`/`GetUser`/`GetUserPolicy`/`TagUser`
-  (for the `knr-ops-reader` console user), and
+  (for the `knr-ops-read-user` console user), and
   `eks:CreatePodIdentityAssociation`/`DescribePodIdentityAssociation`/
   `DeletePodIdentityAssociation`. The `rds:*` management and
   `secretsmanager:CreateSecret`/`TagResource`/`RotateSecret` permissions
@@ -127,7 +127,7 @@ in place.
 > orphaned `knr-ops-*-workload-reader` roles, the CAPA-created per-cluster
 > IAM roles (`*-workload-*` prefix sweep), the `knr-ops-ack-s3-controller` /
 > `knr-ops-ack-rds-controller` / `knr-ops-ack-iam-controller` IAM roles, and
-> the `knr-ops-reader` IAM user (including its login profile and inline
+> the `knr-ops-read-user` IAM user (including its login profile and inline
 > policy). Slow deletions (nodegroups, EKS control planes) are awaited so
 > VPC cleanup succeeds within the same run.
 
