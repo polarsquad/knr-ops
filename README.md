@@ -18,6 +18,11 @@ delivered through CAPI addons, and application workloads (the
 managing secure S3 buckets, PostgreSQL instances, and read-only IAM roles)
 running on each workload cluster.
 
+PRs are reviewed as **rendered** Flux diffs (blast radius, image changes,
+render failures) by an in-cluster
+[konflate](https://github.com/home-operations/konflate) instance — see
+[docs/konflate.md](docs/konflate.md).
+
 ## Prerequisites
 
 - Mise
@@ -44,6 +49,7 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 | [docs/architecture.md](docs/architecture.md) | Architecture diagram, reconciliation order, how workload apps are delivered |
 | [docs/aws-iam.md](docs/aws-iam.md) | EKS Pod Identity, ACK controller IAM roles, per-cluster reader roles, the `knr-ops-reader` console user |
 | [docs/workload-resources.md](docs/workload-resources.md) | S3 bucket security posture, RDS instances, known limitations |
+| [docs/konflate.md](docs/konflate.md) | Rendered Flux PR review: in-cluster konflate instance, CI workflow, tokens |
 | [docs/secrets.md](docs/secrets.md) | SOPS + age secret management, key setup, credential rotation |
 | [docs/operations.md](docs/operations.md) | Prerequisites, AWS service quotas, configuration, bootstrap, verification, teardown, validation |
 | [docs/extending.md](docs/extending.md) | Adding a workload cluster, adding apps to the workload clusters |

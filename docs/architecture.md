@@ -146,8 +146,8 @@ output — blast radius, image changes, render failures, and danger lint —
 instead of the raw file diff. The `konflate` GitHub Actions workflow
 (`.github/workflows/konflate.yml`) triggers an immediate re-render on each PR
 push, posts the rendered summary as a PR comment, and fails the check when the
-render fails. The UI is not exposed outside the cluster; reach it with
-`kubectl port-forward -n konflate svc/konflate 8080:8080`.
+render fails. Full details (deployment, tokens, CI workflow, UI access):
+[PR review: konflate](./konflate.md).
 
 ## Reconciliation order (each workload cluster)
 

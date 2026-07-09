@@ -78,6 +78,8 @@ the new token.
 
 ## Setting / rotating the konflate tokens
 
+What each token does is covered in [PR review: konflate](./konflate.md).
+
 ```sh
 # Decrypt in place, set stringData.KONFLATE_TOKEN (a read-only GitHub PAT) and
 # stringData.KONFLATE_PUSH_TOKEN (any random string), then re-encrypt:
