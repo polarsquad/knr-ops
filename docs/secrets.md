@@ -17,7 +17,7 @@ with `spec.decryption.provider: sops`):
 |---|---|---|
 | `capi-mgmt/capi-providers/capa-system/aws-credentials.sops.yaml` | `capa-system` | CAPA controller AWS credentials |
 | `capi-mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml` | `ack-controllers` | ACK IAM/EKS controller AWS credentials (shared-credentials-file format) |
-| `capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml` | `flux-apps` | GitHub App pull secret, delivered to each workload cluster via ClusterResourceSet so its Flux can clone this (private) repo |
+| `capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml` | `flux-apps` | GitHub PAT pull secret (basic auth), delivered to each workload cluster via ClusterResourceSet so its Flux can clone this (private) repo |
 
 ## First-time setup
 
@@ -52,9 +52,25 @@ View a decrypted secret without changing it:
 mise run sops-decrypt <file>.sops.yaml
 ```
 
-The management cluster's own `flux-github-app` secret is created imperatively
-by `bootstrap.sh` and is **not** in Git — Flux needs it to clone the repo
-before it could ever decrypt anything (a chicken-and-egg constraint). The
-workload clusters' copy *is* in Git (`flux-pull-secret.sops.yaml`) because the
-management cluster's Flux decrypts it before shipping it out via
-ClusterResourceSet.
+## Setting / rotating the GitHub PAT
+
+The management cluster's own `flux-github-pat` secret is created imperatively
+by `bootstrap.sh` (from `GITHUB_TOKEN` in `.env`) and is **not** in Git — Flux
+needs it to clone the repo before it could ever decrypt anything (a
+chicken-and-egg constraint). The workload clusters' copy *is* in Git
+(`flux-pull-secret.sops.yaml`) because the management cluster's Flux decrypts
+it before shipping it out via ClusterResourceSet.
+
+To set or rotate the PAT in the workload clusters' pull secret:
+
+```sh
+# Decrypt in place, put the PAT into the nested stringData.password field,
+# then re-encrypt:
+mise x -- sops --decrypt --in-place --input-type yaml --output-type yaml \
+  capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
+$EDITOR capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
+mise run sops-encrypt capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
+```
+
+Remember to also update `GITHUB_TOKEN` in `.env` so the next bootstrap uses
+the new token.

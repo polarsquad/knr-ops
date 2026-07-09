@@ -21,14 +21,15 @@ running on each workload cluster.
 ## Prerequisites
 
 - Mise
-- GitHub App
+- GitHub personal access token (PAT) with read access to this repo
 - AWS credentials and quotas established
 
 ## Quickstart
 
 ```sh
-mise install                # tools pinned in mise.toml (kubectl, kind, flux, ...)
-cp .env.example .env        # fill in GitHub App + AWS settings; gitignored
+mise trust                  # to enable mise in this repository
+mise install                # installs tools pinned in mise.toml (kubectl, kind, flux, ...)
+cp .env.example .env        # fill in GitHub PAT + AWS settings; gitignored
 mise run sops-keygen        # first time only — age key for SOPS
 mise run bootstrap          # kind cluster + Flux; everything else is GitOps
 flux get kustomizations --watch

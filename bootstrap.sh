@@ -8,16 +8,12 @@ for cmd in kind helm kubectl; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found in PATH"; exit 1; }
 done
 
-: "${GITHUB_APP_ID:?GITHUB_APP_ID must be set}"
-: "${GITHUB_APP_INSTALLATION_ID:?GITHUB_APP_INSTALLATION_ID must be set}"
-: "${GITHUB_APP_PRIVATE_KEY:?GITHUB_APP_PRIVATE_KEY must be set (path to .pem file)}"
+: "${GITHUB_TOKEN:?GITHUB_TOKEN must be set (a PAT with read access to the repo)}"
 : "${GIT_REPO_URL:?GIT_REPO_URL must be set}"
 
-# Validate GitHub App private key exists before doing anything
-if [ ! -f "${GITHUB_APP_PRIVATE_KEY}" ]; then
-  echo "ERROR: GitHub App private key file not found at '${GITHUB_APP_PRIVATE_KEY}'." >&2
-  exit 1
-fi
+# GITHUB_USER is only used as the basic-auth username; any non-empty value
+# works with a GitHub PAT, so default to "git".
+GITHUB_USER="${GITHUB_USER:-git}"
 
 # ── SOPS age key ──────────────────────────────────────────────────────────────
 # Flux decrypts SOPS-encrypted secrets in Git (e.g. the CAPA AWS credentials)
@@ -63,13 +59,13 @@ helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-opera
   --create-namespace \
   --wait
 
-# ── Step 3: Create GitHub App credentials secret ─────────────────────────────
-echo ">>> Creating GitHub App credentials secret in flux-system..."
-kubectl create secret generic flux-github-app \
+# ── Step 3: Create GitHub PAT credentials secret ─────────────────────────────
+# Basic-auth secret consumed by Flux's source-controller to clone the repo.
+echo ">>> Creating GitHub PAT credentials secret in flux-system..."
+kubectl create secret generic flux-github-pat \
   --namespace flux-system \
-  --from-literal=githubAppID="${GITHUB_APP_ID}" \
-  --from-literal=githubAppInstallationID="${GITHUB_APP_INSTALLATION_ID}" \
-  --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY}"
+  --from-literal=username="${GITHUB_USER}" \
+  --from-literal=password="${GITHUB_TOKEN}"
 
 # ── Step 3b: Create SOPS age decryption key secret ────────────────────────────
 # Flux's kustomize-controller uses this key to decrypt *.sops.yaml manifests
@@ -119,8 +115,7 @@ helm upgrade --install flux \
   --set instance.sync.url="${GIT_REPO_URL}" \
   --set instance.sync.ref=refs/heads/main \
   --set instance.sync.path=capi-mgmt \
-  --set instance.sync.pullSecret=flux-github-app \
-  --set instance.sync.provider=github
+  --set instance.sync.pullSecret=flux-github-pat
 
 # ── Post-bootstrap health check ───────────────────────────────────────────────
 # Verify the Flux controllers are running before declaring success.

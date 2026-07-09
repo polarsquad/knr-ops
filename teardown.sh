@@ -10,7 +10,7 @@
 #   5. Delete CAPI providers (operator deprovisions controllers)
 #   6. Uninstall the FluxInstance Helm release
 #   7. Uninstall the Flux Operator Helm release
-#   8. Delete the GitHub App, SOPS age, and AWS credentials secrets
+#   8. Delete the GitHub PAT, SOPS age, and AWS credentials secrets
 #   9. Delete the kind management cluster
 #
 # AWS cleanup (step 4) targets resources that CAPA does not manage or may leave
@@ -861,8 +861,8 @@ fi
 
 # ── Step 8: Delete secrets ────────────────────────────────────────────────────
 if [ "${AWS_ONLY:-0}" != "1" ]; then
-  info "Deleting GitHub App and SOPS age secrets..."
-  kubectl delete secret flux-github-app -n flux-system --ignore-not-found
+  info "Deleting GitHub PAT and SOPS age secrets..."
+  kubectl delete secret flux-github-pat -n flux-system --ignore-not-found
   kubectl delete secret sops-age -n flux-system --ignore-not-found
   # The aws-credentials secret is GitOps-managed (decrypted by Flux), but remove
   # it explicitly in case Flux was uninstalled before it could be pruned.
