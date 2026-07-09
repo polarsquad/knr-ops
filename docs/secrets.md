@@ -18,7 +18,7 @@ with `spec.decryption.provider: sops`):
 | `capi-mgmt/capi-providers/capa-system/aws-credentials.sops.yaml` | `capa-system` | CAPA controller AWS credentials |
 | `capi-mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml` | `ack-controllers` | ACK IAM/EKS controller AWS credentials (shared-credentials-file format) |
 | `capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml` | `flux-apps` | GitHub PAT pull secret (basic auth), delivered to each workload cluster via ClusterResourceSet so its Flux can clone this (private) repo |
-| `capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml` | `konflate` | `KONFLATE_TOKEN` (read-only GitHub PAT so konflate can list PRs and clone this private repo) and `KONFLATE_PUSH_TOKEN` (gates konflate's CI refresh endpoint; mirror it as the `KONFLATE_PUSH_TOKEN` repo secret in GitHub Actions) |
+| `capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml` | `konflate` | `KONFLATE_TOKEN` (read-only GitHub PAT so konflate can list PRs and clone this private repo) and `KONFLATE_WRITE_TOKEN` (write-back credential konflate uses to post the PR summary comment and the `Konflate` commit status) |
 
 ## First-time setup
 
@@ -78,14 +78,19 @@ the new token.
 
 ## Setting / rotating the konflate tokens
 
+What each token does is covered in [PR review: konflate](./konflate.md).
+
 ```sh
 # Decrypt in place, set stringData.KONFLATE_TOKEN (a read-only GitHub PAT) and
-# stringData.KONFLATE_PUSH_TOKEN (any random string), then re-encrypt:
+# stringData.KONFLATE_WRITE_TOKEN (a fine-grained PAT with Pull requests +
+# Commit statuses R/W on this repo, or a classic PAT with `repo` scope),
+# then re-encrypt:
 mise x -- sops --decrypt --in-place --input-type yaml --output-type yaml \
   capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml
 $EDITOR capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml
 mise run sops-encrypt capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml
 ```
 
-When rotating `KONFLATE_PUSH_TOKEN`, update the GitHub Actions repo secret of
-the same name so the `konflate` workflow keeps triggering re-renders.
+Keep the two tokens separate: the read token (`KONFLATE_TOKEN`) should carry
+no write scope, and the write token is used only for konflate's write-back
+(the PR summary comment and the `Konflate` commit status).
