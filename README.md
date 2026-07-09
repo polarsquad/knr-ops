@@ -56,7 +56,8 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 ├── capi-mgmt/                     Synced by the MANAGEMENT cluster's Flux
 │   ├── infrastructure/            cert-manager, CAPI operator, CAPA identity,
 │   │                              ACK controllers, pod-identity roles,
-│   │                              account-global IAM (reader console user)
+│   │                              account-global IAM (reader console user),
+│   │                              konflate (rendered Flux PR review)
 │   ├── capi-providers/            capi-system, capa-system (SOPS creds),
 │   │                              caaph-system
 │   ├── addons/flux-apps/          Installs Flux on each workload cluster
