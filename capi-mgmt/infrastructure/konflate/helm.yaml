@@ -12,15 +12,18 @@
 #
 # Authentication: the `konflate-token` secret (konflate-token.sops.yaml, SOPS-
 # encrypted) carries KONFLATE_TOKEN (a read-only GitHub PAT — the repo is
-# private) and KONFLATE_PUSH_TOKEN (enables POST /api/prs/{n}/refresh so the
-# konflate CI workflow can trigger an immediate re-render).
+# private) and KONFLATE_WRITE_TOKEN (write-back credential, see below).
 #
-# Konflate is read-only toward GitHub: it writes nothing back to the forge.
-# The CI workflow (.github/workflows/konflate.yml) pulls the rendered summary
-# from konflate's API and posts it as the PR comment instead.
+# Reporting uses konflate's WRITE-BACK mode: konflate itself posts the rendered
+# summary as a PR comment (edited in place on each render) and a `Konflate`
+# commit status with the render verdict. Write-back is outbound-only — the kind
+# management cluster needs no inbound reachability from GitHub, which is why
+# there is no CI job pulling from konflate's API.
 #
 # The UI is not exposed outside the cluster; reach it with:
 #   kubectl port-forward -n konflate svc/konflate 8080:8080
+# (Renders refresh on konflate's 30m interval; a posted comment/status carries
+# no review link because KONFLATE_PUBLIC_URL is unset.)
 # ══════════════════════════════════════════════════════════════════════════════
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -56,8 +59,15 @@ spec:
       # Empty cluster path = render from the repo root, matching this repo's
       # root-relative Flux Kustomization paths.
       clusterPath: ""
+      # Write-back (outbound-only): post the rendered summary as a PR comment,
+      # edited in place on each render...
+      prComments: true
+      # ...and a `Konflate` commit status on the PR head — success when the
+      # diff rendered, failure when it didn't. Make it a required check in
+      # branch protection to gate merges on the render.
+      statusChecks: true
     secret:
-      # KONFLATE_TOKEN + KONFLATE_PUSH_TOKEN, delivered SOPS-encrypted
+      # KONFLATE_TOKEN + KONFLATE_WRITE_TOKEN, delivered SOPS-encrypted
       # (konflate-token.sops.yaml in this directory).
       existingSecret: konflate-token
     # Persist the flate source caches and rendered diffs across pod restarts

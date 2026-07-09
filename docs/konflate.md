@@ -13,9 +13,10 @@ two, so a review shows:
   merge, not at reconcile time.
 - **Danger lint** — cautions on risky changes.
 
-Konflate is **read-only toward GitHub**: it never writes to the forge. The CI
-workflow (below) pulls the rendered summary from konflate's API and posts the
-PR comment itself.
+Reporting uses konflate's **write-back** mode: konflate itself posts the
+results to GitHub from inside the cluster. Write-back is outbound-only — the
+local kind management cluster needs no inbound reachability from GitHub, so
+there is no CI job and nothing to expose publicly.
 
 ## Deployment
 
@@ -30,6 +31,8 @@ A single instance runs on the **management cluster**, deployed from
 | Namespace | `konflate` |
 | `config.repo` | `github://polarsquad/knr-ops` |
 | `config.clusterPath` | `""` — render from the repo root, matching this repo's root-relative Flux Kustomization paths (`./capi-mgmt/...`, `./apps/...`) |
+| `config.prComments` | `true` — post the rendered summary as a PR comment |
+| `config.statusChecks` | `true` — post the `Konflate` commit status with the render verdict |
 | Secret | `konflate-token` (SOPS-encrypted, `konflate-token.sops.yaml`) |
 | Persistence | Enabled (kind's default local-path StorageClass) so source caches and rendered diffs survive pod restarts |
 
@@ -40,37 +43,31 @@ The `konflate-token` secret carries two values (rotation:
 
 - **`KONFLATE_TOKEN`** — a read-only GitHub PAT. The repo is private, so
   konflate needs it to list PRs and clone.
-- **`KONFLATE_PUSH_TOKEN`** — any random string. Gates
-  `POST /api/prs/{n}/refresh`, which lets CI trigger an immediate re-render
-  instead of waiting for konflate's periodic refresh. Mirror the same value
-  as the `KONFLATE_PUSH_TOKEN` GitHub Actions repo secret.
+- **`KONFLATE_WRITE_TOKEN`** — the write-back credential, kept separate from
+  the read token so that one carries no write scope. A fine-grained PAT with
+  **Pull requests** and **Commit statuses** (R/W) on this repo, or a classic
+  PAT with `repo` scope.
 
-## CI workflow
+## Write-back
 
-`.github/workflows/konflate.yml` runs on every PR:
+On every render konflate:
 
-1. **Trigger a re-render** — `POST /api/prs/{n}/refresh` with the push token
-   (skipped without the token; konflate then picks the push up on its own
-   refresh interval).
-2. **Fetch the summary** — `GET /api/prs/{n}/summary` (markdown). The
-   endpoint answers `503` + `Retry-After` while the render is in flight, so
-   the request retries until it's done. The render verdict rides in the
-   `X-Konflate-Render-Status` response header.
-3. **Comment and gate** — posts the summary as a single PR comment (edited
-   in place on every push) and fails the job when the render failed, so a PR
-   that breaks the Flux render can't merge unnoticed.
+1. **Posts / edits the PR comment** — the rendered summary (blast radius,
+   image changes, cautions, render failures) as a single comment, found by a
+   hidden marker and edited in place on each subsequent render — it never
+   piles up duplicates.
+2. **Posts the `Konflate` commit status** on the PR head — `success` when the
+   diff rendered, `failure` when it didn't. To gate merges on the render, mark
+   `Konflate` as a required status check in branch protection.
 
-Fork PRs are skipped: they get no secrets and a read-only `GITHUB_TOKEN`, and
-konflate doesn't render forks by default (`KONFLATE_RENDER_FORK_PRS`).
+Notes:
 
-### GitHub-side configuration
-
-Both are optional — when absent the workflow skips gracefully:
-
-| Setting | Kind | Value |
-|---|---|---|
-| `KONFLATE_URL` | Actions **variable** | Externally reachable base URL of the konflate instance |
-| `KONFLATE_PUSH_TOKEN` | Actions **secret** | Same value as `KONFLATE_PUSH_TOKEN` in `konflate-token.sops.yaml` |
+- PRs re-render automatically on konflate's refresh interval (default 30m)
+  and whenever it observes the head advance; there is no push/webhook trigger
+  configured, so a fresh push can take up to one interval to be reviewed.
+- The posted comment and status carry no "view review" link because
+  `KONFLATE_PUBLIC_URL` is unset (the UI isn't reachable from outside).
+- Fork PRs are never rendered (`KONFLATE_RENDER_FORK_PRS` is off by default).
 
 ## UI
 

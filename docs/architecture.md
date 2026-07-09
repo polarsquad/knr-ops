@@ -143,10 +143,10 @@ The management cluster also runs a single
 (`github://polarsquad/knr-ops`, rendering from the repo root). It renders each
 open PR at its merge-base and head and shows the diff of the *rendered* Flux
 output — blast radius, image changes, render failures, and danger lint —
-instead of the raw file diff. The `konflate` GitHub Actions workflow
-(`.github/workflows/konflate.yml`) triggers an immediate re-render on each PR
-push, posts the rendered summary as a PR comment, and fails the check when the
-render fails. Full details (deployment, tokens, CI workflow, UI access):
+instead of the raw file diff. Konflate posts the rendered summary as a PR
+comment and a `Konflate` commit status itself (**write-back** — outbound-only,
+so the local kind cluster needs no inbound reachability from GitHub, and no CI
+job is involved). Full details (deployment, tokens, write-back, UI access):
 [PR review: konflate](./konflate.md).
 
 ## Reconciliation order (each workload cluster)
