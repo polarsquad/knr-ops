@@ -1,7 +1,7 @@
 # knr-ops
 ## kubernetes-native resource operations
 
-This is a method of using Kubernetes-native resources to manage cloud-infrastucture and workloads all from a monorepo using Flux CD for GitOps. The idea here is that IaC doesn't have to be complicated, use DSL, or require expensive tools.
+This is a method of using Kubernetes-native resources to manage cloud-infrastucture and workloads all from a monorepo using Flux CD for GitOps. The idea here is that IaC doesn't have to be complicated, use DSLs, or require expensive tools.
 
 After a one-time bootstrap, everything is declared in Git as yaml.
 
