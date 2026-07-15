@@ -12,12 +12,11 @@ After a one-time bootstrap, everything is declared in Git as yaml.
 
 Starts with a local [kind](https://kind.sigs.k8s.io/) cluster that bootstraps
 [Flux](https://fluxcd.io/), which then reconciles everything else from this
-repository — AWS EKS workload clusters provisioned via
-[CAPA](https://cluster-api-aws.sigs.k8s.io/), per-cluster Flux instances
-delivered through CAPI addons, and application workloads (the
-[ACK](https://aws-controllers-k8s.github.io/docs/) S3, RDS, and IAM operators
-managing secure S3 buckets, PostgreSQL instances, and read-only IAM roles)
-running on each workload cluster.
+repository:
+- AWS EKS workload clusters provisioned via
+[CAPA](https://cluster-api-aws.sigs.k8s.io/)
+- per-cluster Flux instances delivered through CAPI addons
+- application workloads (the [ACK](https://aws-controllers-k8s.github.io/docs/) S3, RDS, and IAM operators managing secure S3 buckets, PostgreSQL instances, and read-only IAM roles) running on each workload cluster.
 
 PRs are reviewed as **rendered** Flux diffs (blast radius, image changes,
 render failures) by an in-cluster
