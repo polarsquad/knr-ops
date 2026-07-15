@@ -14,7 +14,8 @@ This provides `kubectl`, `kind`, `helm`, `flux`, `clusterctl`, `clusterawsadm`,
 
 You also need:
 
-- A running Docker daemon (for kind).
+- A running container engine for kind: Docker, or Podman 5.5+ (auto-detected
+  by `bootstrap.sh`; set `CONTAINER_ENGINE=docker|podman` to override).
 - A GitHub personal access token (PAT) with read access to this repository
   (fine-grained with read-only Contents permission, or classic with `repo`
   scope).
