@@ -1,7 +1,7 @@
 # knr-ops
 ## kubernetes-native resource operations
 
-A GitOps pattern for managing cloud infrastructure through the Kubernetes API —
+A GitOps pattern for managing cloud infrastructure through the Kubernetes API:
 no Terraform, no DSLs, no state files, no second toolchain. This repository is
 a working reference implementation of that pattern on AWS. **It is not a
 product**: fork it, strip it down, and adapt the layout to your own cloud and
@@ -29,19 +29,19 @@ cloud infrastructure with the same API, RBAC, audit trail, and GitOps workflow
 they use for workloads. If you're reaching for Terraform/OpenTofu, Pulumi, or
 Crossplane to stand up cloud resources for Kubernetes, this pattern is the
 alternative: the cluster you already operate becomes the control plane. It is
-not a developer self-service portal — you are the consumer.
+not a developer self-service portal; you are the consumer.
 
 ## Problems the pattern solves
 
-- **State files** — drift, locking, corruption. Controllers reconcile actual
+- **State files**: drift, locking, corruption. Controllers reconcile actual
   state continuously instead of diffing a snapshot.
-- **The plan/apply gap** — PRs are reviewed as **rendered** Flux diffs (blast
+- **The plan/apply gap**: PRs are reviewed as **rendered** Flux diffs (blast
   radius, image changes, render failures) by an in-cluster
   [konflate](https://github.com/home-operations/konflate) instance: you review
   byte-for-byte what reconciles. See [docs/konflate.md](docs/konflate.md).
-- **Two toolchains** — HCL for infra, YAML for workloads. One control plane
+- **Two toolchains**: HCL for infra, YAML for workloads. One control plane
   means RBAC, policy, and audit cover both.
-- **Lifecycle split** — Terraform builds the cluster but can't manage what's
+- **Lifecycle split**: Terraform builds the cluster but can't manage what's
   in it. CAPI + Flux is one dependency graph from cluster to workload.
 
 ## Prerequisites
@@ -56,7 +56,7 @@ not a developer self-service portal — you are the consumer.
 mise trust                  # to enable mise in this repository
 mise install                # installs tools pinned in mise.toml (kubectl, kind, flux, ...)
 cp .env.example .env        # fill in GitHub PAT + AWS settings; gitignored
-mise run sops-keygen        # first time only — age key for SOPS
+mise run sops-keygen        # first time only: age key for SOPS
 mise run bootstrap          # kind cluster + Flux; everything else is GitOps
 flux get kustomizations --watch
 mise run validate           # build every kustomize overlay (mirrors CI)
