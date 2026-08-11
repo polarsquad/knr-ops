@@ -8,3 +8,4 @@ resources:
   - ack-controllers
   - ack-pod-identity
   - aws-global-iam
+  - konflate

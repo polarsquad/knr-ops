@@ -126,3 +126,23 @@ spec:
   path: ./capi-mgmt/infrastructure/aws-global-iam
   dependsOn:
     - name: ack-controllers
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: konflate
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 2m
+  timeout: 5m
+  prune: true
+  wait: false
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./capi-mgmt/infrastructure/konflate
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age

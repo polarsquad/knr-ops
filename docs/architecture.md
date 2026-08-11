@@ -15,7 +15,7 @@ flowchart TD
     subgraph bootstrap["Bootstrap (one-time, bootstrap.sh)"]
         KIND[kind cluster: capi-mgmt]
         HELM[Helm: flux-operator + FluxInstance]
-        SEC[Secrets: flux-github-app + sops-age]
+        SEC[Secrets: flux-github-pat + sops-age]
         KIND --> HELM
         KIND --> SEC
     end
@@ -38,6 +38,7 @@ flowchart TD
         ACKC["ack-controllers (SOPS creds)<br/>ACK IAM + EKS controllers"]
         ACKPI["ack-pod-identity<br/>IAM Role + PodIdentityAssociations"]
         AWSIAM["aws-iam<br/>knr-ops-reader console user"]
+        KONF["konflate (SOPS token)<br/>rendered Flux PR review"]
         EUN[eu-north-1 cluster def]
         EUW[eu-west-1 cluster def]
         FA["flux-apps (SOPS pull secret)<br/>HelmChartProxy + ClusterResourceSets"]
@@ -49,6 +50,7 @@ flowchart TD
         CAPAS --> EUW
         FS --> ACKC --> ACKPI
         ACKC --> AWSIAM
+        FS --> KONF
     end
 
     REPO --> FS
@@ -130,7 +132,22 @@ cert-manager ▶ capi-operator ▶ capi-system ▶ capa-system ▶ clusters (eu-
                             └▶ capa-identity ▶ aws-managed-clusters
 ack-controllers ▶ ack-pod-identity
 ack-controllers ▶ aws-iam
+konflate (no dependencies)
 ```
+
+## PR review: konflate
+
+The management cluster also runs a single
+[konflate](https://github.com/home-operations/konflate) instance
+(`capi-mgmt/infrastructure/konflate/`), pointed at this repo
+(`github://polarsquad/knr-ops`, rendering from the repo root). It renders each
+open PR at its merge-base and head and shows the diff of the *rendered* Flux
+output — blast radius, image changes, render failures, and danger lint —
+instead of the raw file diff. Konflate posts the rendered summary as a PR
+comment and a `Konflate` commit status itself (**write-back** — outbound-only,
+so the local kind cluster needs no inbound reachability from GitHub, and no CI
+job is involved). Full details (deployment, tokens, write-back, UI access):
+[PR review: konflate](./konflate.md).
 
 ## Reconciliation order (each workload cluster)
 

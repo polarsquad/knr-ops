@@ -1,0 +1,76 @@
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# Konflate – https://github.com/home-operations/konflate
+#
+# Reviews this repo's open PRs as RENDERED Flux diffs (blast radius, image
+# changes, render failures, danger lint) instead of raw file diffs. A single
+# instance on the MANAGEMENT cluster tracks github://polarsquad/knr-ops and
+# renders from the repo root, which is where every Flux Kustomization path in
+# this repo (./capi-mgmt/..., ./apps/...) resolves against.
+#
+# Chart is published as an OCI artifact on GHCR.
+#
+# Authentication: the `konflate-token` secret (konflate-token.sops.yaml, SOPS-
+# encrypted) carries KONFLATE_TOKEN (a read-only GitHub PAT — the repo is
+# private) and KONFLATE_WRITE_TOKEN (write-back credential, see below).
+#
+# Reporting uses konflate's WRITE-BACK mode: konflate itself posts the rendered
+# summary as a PR comment (edited in place on each render) and a `Konflate`
+# commit status with the render verdict. Write-back is outbound-only — the kind
+# management cluster needs no inbound reachability from GitHub, which is why
+# there is no CI job pulling from konflate's API.
+#
+# The UI is not exposed outside the cluster; reach it with:
+#   kubectl port-forward -n konflate svc/konflate 8080:8080
+# (Renders refresh on konflate's 30m interval; a posted comment/status carries
+# no review link because KONFLATE_PUBLIC_URL is unset.)
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: konflate-chart
+  namespace: konflate
+spec:
+  interval: 1h
+  url: oci://ghcr.io/home-operations/charts/konflate
+  ref:
+    tag: "0.3.0"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: konflate
+  namespace: konflate
+spec:
+  interval: 10m
+  timeout: 5m
+  chartRef:
+    kind: OCIRepository
+    name: konflate-chart
+  install:
+    crds: CreateReplace
+    createNamespace: false
+  upgrade:
+    crds: CreateReplace
+  values:
+    config:
+      # Forge URI of the repository to review.
+      repo: github://polarsquad/knr-ops
+      # Empty cluster path = render from the repo root, matching this repo's
+      # root-relative Flux Kustomization paths.
+      clusterPath: ""
+      # Write-back (outbound-only): post the rendered summary as a PR comment,
+      # edited in place on each render...
+      prComments: true
+      # ...and a `Konflate` commit status on the PR head — success when the
+      # diff rendered, failure when it didn't. Make it a required check in
+      # branch protection to gate merges on the render.
+      statusChecks: true
+    secret:
+      # KONFLATE_TOKEN + KONFLATE_WRITE_TOKEN, delivered SOPS-encrypted
+      # (konflate-token.sops.yaml in this directory).
+      existingSecret: konflate-token
+    # Persist the flate source caches and rendered diffs across pod restarts
+    # (kind's default local-path StorageClass).
+    persistence:
+      enabled: true

@@ -62,8 +62,7 @@ data:
         url: "https://github.com/polarsquad/knr-ops"
         ref: "refs/heads/main"
         path: "apps/eu-north-01"
-        pullSecret: "flux-github-app"
-        provider: "github"
+        pullSecret: "flux-github-pat"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -116,12 +115,11 @@ data:
         url: "https://github.com/polarsquad/knr-ops"
         ref: "refs/heads/main"
         path: "apps/eu-west-01"
-        pullSecret: "flux-github-app"
-        provider: "github"
+        pullSecret: "flux-github-pat"
 ---
 # ══════════════════════════════════════════════════════════════════════════════
 # ClusterResourceSets: apply the per-region FluxInstance ConfigMap and the
-# GitHub App pull secret (flux-pull-secret.sops.yaml, SOPS-encrypted) to each
+# GitHub PAT pull secret (flux-pull-secret.sops.yaml, SOPS-encrypted) to each
 # workload cluster, selected by the `region` label on the Cluster resource.
 # ══════════════════════════════════════════════════════════════════════════════
 apiVersion: addons.cluster.x-k8s.io/v1beta1

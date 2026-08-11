@@ -7,7 +7,6 @@
 
 # Secrets — never commit these
 *.pem
-github-app-private-key.pem
 
 # SOPS age PRIVATE key — the public key in .sops.yaml is safe to commit
 *.agekey

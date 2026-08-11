@@ -8,16 +8,12 @@ for cmd in kind helm kubectl; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found in PATH"; exit 1; }
 done
 
-: "${GITHUB_APP_ID:?GITHUB_APP_ID must be set}"
-: "${GITHUB_APP_INSTALLATION_ID:?GITHUB_APP_INSTALLATION_ID must be set}"
-: "${GITHUB_APP_PRIVATE_KEY:?GITHUB_APP_PRIVATE_KEY must be set (path to .pem file)}"
+: "${GITHUB_TOKEN:?GITHUB_TOKEN must be set (a PAT with read access to the repo)}"
 : "${GIT_REPO_URL:?GIT_REPO_URL must be set}"
 
-# Validate GitHub App private key exists before doing anything
-if [ ! -f "${GITHUB_APP_PRIVATE_KEY}" ]; then
-  echo "ERROR: GitHub App private key file not found at '${GITHUB_APP_PRIVATE_KEY}'." >&2
-  exit 1
-fi
+# GITHUB_USER is only used as the basic-auth username; any non-empty value
+# works with a GitHub PAT, so default to "git".
+GITHUB_USER="${GITHUB_USER:-git}"
 
 # ── SOPS age key ──────────────────────────────────────────────────────────────
 # Flux decrypts SOPS-encrypted secrets in Git (e.g. the CAPA AWS credentials)
@@ -31,8 +27,50 @@ if [ ! -f "$AGE_KEY_FILE" ]; then
   exit 1
 fi
 
-# ── Prerequisite: Docker daemon ───────────────────────────────────────────────
-docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon not running"; exit 1; }
+# ── Prerequisite: container engine (Docker or Podman) ────────────────────────
+# CONTAINER_ENGINE may be set to "docker" or "podman" to skip auto-detection.
+if [ -z "${CONTAINER_ENGINE:-}" ]; then
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    # The podman-docker shim makes `docker` an alias for podman — detect that.
+    if docker --version 2>/dev/null | grep -qi podman; then
+      CONTAINER_ENGINE=podman
+    else
+      CONTAINER_ENGINE=docker
+    fi
+  elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+    CONTAINER_ENGINE=podman
+  else
+    echo "ERROR: No running container engine found (tried docker and podman)" >&2
+    exit 1
+  fi
+fi
+
+case "$CONTAINER_ENGINE" in
+  docker)
+    docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon not running" >&2; exit 1; }
+    # Mounted into the kind node so in-cluster tooling (e.g. CAPD) can drive
+    # the host container engine through the Docker API.
+    ENGINE_SOCK="/var/run/docker.sock"
+    ;;
+  podman)
+    podman info >/dev/null 2>&1 || { echo "ERROR: Podman is not running (is 'podman machine' started?)" >&2; exit 1; }
+    # kind's podman support is behind an explicit opt-in flag.
+    export KIND_EXPERIMENTAL_PROVIDER=podman
+    # Ask podman where its API socket lives (on macOS this is the path inside
+    # the podman machine VM, which is what kind's extraMounts resolve against).
+    ENGINE_SOCK="$(podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null || true)"
+    ENGINE_SOCK="${ENGINE_SOCK#unix://}"
+    if [ -z "$ENGINE_SOCK" ]; then
+      ENGINE_SOCK="/run/podman/podman.sock"
+      echo ">>> WARNING: Could not detect the podman API socket path; assuming ${ENGINE_SOCK}" >&2
+    fi
+    ;;
+  *)
+    echo "ERROR: Unsupported CONTAINER_ENGINE '${CONTAINER_ENGINE}' (expected 'docker' or 'podman')" >&2
+    exit 1
+    ;;
+esac
+echo ">>> Using container engine: ${CONTAINER_ENGINE} (socket: ${ENGINE_SOCK})"
 
 # ── Step 1: Create the kind management cluster ────────────────────────────────
 echo ">>> Creating kind cluster 'capi-mgmt'..."
@@ -41,13 +79,16 @@ if kind get clusters 2>/dev/null | grep -q "^capi-mgmt$"; then
   echo ">>> Cluster 'capi-mgmt' already exists – recreating..."
   kind delete cluster --name capi-mgmt
 fi
-kind create cluster --name capi-mgmt --config - <<'EOF'
+# The engine socket is mounted at the Docker socket path inside the node, so
+# consumers always find a Docker-compatible API at /var/run/docker.sock
+# (podman serves the Docker-compatible API on its own socket).
+kind create cluster --name capi-mgmt --config - <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
     extraMounts:
-      - hostPath: /var/run/docker.sock
+      - hostPath: ${ENGINE_SOCK}
         containerPath: /var/run/docker.sock
 EOF
 
@@ -63,13 +104,13 @@ helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-opera
   --create-namespace \
   --wait
 
-# ── Step 3: Create GitHub App credentials secret ─────────────────────────────
-echo ">>> Creating GitHub App credentials secret in flux-system..."
-kubectl create secret generic flux-github-app \
+# ── Step 3: Create GitHub PAT credentials secret ─────────────────────────────
+# Basic-auth secret consumed by Flux's source-controller to clone the repo.
+echo ">>> Creating GitHub PAT credentials secret in flux-system..."
+kubectl create secret generic flux-github-pat \
   --namespace flux-system \
-  --from-literal=githubAppID="${GITHUB_APP_ID}" \
-  --from-literal=githubAppInstallationID="${GITHUB_APP_INSTALLATION_ID}" \
-  --from-file=githubAppPrivateKey="${GITHUB_APP_PRIVATE_KEY}"
+  --from-literal=username="${GITHUB_USER}" \
+  --from-literal=password="${GITHUB_TOKEN}"
 
 # ── Step 3b: Create SOPS age decryption key secret ────────────────────────────
 # Flux's kustomize-controller uses this key to decrypt *.sops.yaml manifests
@@ -119,8 +160,7 @@ helm upgrade --install flux \
   --set instance.sync.url="${GIT_REPO_URL}" \
   --set instance.sync.ref=refs/heads/main \
   --set instance.sync.path=capi-mgmt \
-  --set instance.sync.pullSecret=flux-github-app \
-  --set instance.sync.provider=github
+  --set instance.sync.pullSecret=flux-github-pat
 
 # ── Post-bootstrap health check ───────────────────────────────────────────────
 # Verify the Flux controllers are running before declaring success.
