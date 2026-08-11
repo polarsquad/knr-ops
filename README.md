@@ -1,17 +1,44 @@
 # knr-ops
 
-GitOps-driven [Cluster API](https://cluster-api.sigs.k8s.io/) (CAPI) management
-platform. A local [kind](https://kind.sigs.k8s.io/) cluster bootstraps
-[Flux](https://fluxcd.io/), which then reconciles everything else from this
-repository — AWS EKS workload clusters provisioned via
-[CAPA](https://cluster-api-aws.sigs.k8s.io/), per-cluster Flux instances
-delivered through CAPI addons, and application workloads (the
-[ACK](https://aws-controllers-k8s.github.io/docs/) S3, RDS, and IAM operators
-managing secure S3 buckets, PostgreSQL instances, and read-only IAM roles)
-running on each workload cluster.
+A GitOps pattern for managing cloud infrastructure through the Kubernetes API —
+no Terraform, no state files, no second toolchain. This repository is a working
+reference implementation of that pattern on AWS. **It is not a product**: fork
+it, strip it down, and adapt the layout to your own cloud and clusters.
 
-After the one-time bootstrap, **everything is declared in Git** — no scripts,
-no imperative AWS setup for workloads.
+A local [kind](https://kind.sigs.k8s.io/) cluster bootstraps
+[Flux](https://fluxcd.io/); from then on, **everything is declared in Git** and
+reconciled continuously — EKS workload clusters via
+[CAPA](https://cluster-api-aws.sigs.k8s.io/), per-cluster Flux instances as
+[Cluster API](https://cluster-api.sigs.k8s.io/) addons, and application
+workloads (the [ACK](https://aws-controllers-k8s.github.io/docs/) S3, RDS, and
+IAM operators) running on each workload cluster.
+
+## Who this is for
+
+Platform engineers who already run Kubernetes and want to manage their own
+cloud infrastructure with the same API, RBAC, audit trail, and GitOps workflow
+they use for workloads. If you're reaching for Terraform/OpenTofu, Pulumi, or
+Crossplane to stand up cloud resources for Kubernetes, this pattern is the
+alternative: the cluster you already operate becomes the control plane. It is
+not a developer self-service portal — you are the consumer.
+
+## Problems the pattern solves
+
+- **State files** — drift, locking, corruption. Controllers reconcile actual
+  state continuously instead of diffing a snapshot.
+- **The plan/apply gap** — you review code but apply output. Here the reviewed
+  manifests are what reconciles; CI builds every kustomize overlay on each PR.
+- **Two toolchains** — HCL for infra, YAML for workloads. One control plane
+  means RBAC, policy, and audit cover both.
+- **Lifecycle split** — Terraform builds the cluster but can't manage what's
+  in it. CAPI + Flux is one dependency graph from cluster to workload.
+
+## What the reference implementation deploys
+
+From one management cluster: 2 EKS clusters (eu-north-1, eu-west-1) with ARM
+and GPU node pools, per-cluster Flux delivered via HelmChartProxy +
+ClusterResourceSets, secure S3 buckets, RDS PostgreSQL instances, and a
+read-only IAM console user spanning it all. 0 HCL.
 
 ## Quickstart
 
@@ -39,7 +66,6 @@ walkthrough are in [docs/operations.md](docs/operations.md).
 | [docs/secrets.md](docs/secrets.md) | SOPS + age secret management, key setup, credential rotation |
 | [docs/operations.md](docs/operations.md) | Prerequisites, AWS service quotas, configuration, bootstrap, verification, teardown, validation |
 | [docs/extending.md](docs/extending.md) | Adding a workload cluster, adding apps to the workload clusters |
-| [docs/NOTES.md](docs/NOTES.md) | Scratchpad for detailed operational notes |
 
 ## Repository layout
 
