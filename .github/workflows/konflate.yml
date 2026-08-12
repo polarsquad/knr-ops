@@ -1,0 +1,97 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: konflate
+
+# Renders the PR as a Flux diff with konflate (https://github.com/home-operations/konflate)
+# and gates the merge on the render. konflate runs as a service container
+# inside the job: the in-cluster instance is not reachable from GitHub-hosted
+# runners, so CI runs its own one-shot instance scoped to the triggering PR.
+#
+# Auth uses only the workflow's GITHUB_TOKEN; no PATs or stored secrets.
+# Fork PRs are skipped: rendering one runs untrusted sources through flate.
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read        # konflate clones this repo with the token
+  pull-requests: write  # post/edit the summary comment on the PR
+  issues: write         # PR comments ride the issues comments API
+  checks: read          # konflate's CI-status reads (checks API)
+  statuses: read        # konflate's CI-status reads (legacy commit statuses)
+
+concurrency:
+  group: konflate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Rendered Flux diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    services:
+      konflate:
+        image: ghcr.io/home-operations/konflate:0.5.0
+        ports:
+          - 8080:8080
+        env:
+          KONFLATE_REPO: github://polarsquad/knr-ops
+          KONFLATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Render only the PR that triggered this run.
+          KONFLATE_PR_FILTER_EXPR: pr.number == ${{ github.event.pull_request.number }}
+          # One-shot: render at startup, no periodic refresh afterwards.
+          KONFLATE_REFRESH_INTERVAL: "0"
+          KONFLATE_METRICS_ENABLED: "false"
+          KONFLATE_LOG_FORMAT: text
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Wait for konflate
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:8080/readyz >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "::error::konflate did not become ready in time"
+          exit 1
+
+      - name: Fetch rendered summary
+        run: |
+          # The Markdown path answers 503 + Retry-After until the render
+          # reaches a terminal state, so --retry waits it out. 404s while the
+          # PR list loads at startup are covered by --retry-all-errors.
+          status=$(curl -fsS --retry 30 --retry-delay 5 --retry-all-errors --retry-max-time 600 \
+            -H 'Accept: text/markdown' \
+            -o body.md -w '%header{x-konflate-render-status}' \
+            "http://localhost:8080/api/prs/${PR_NUMBER}/summary?forge=github")
+          echo "status=${status}" >> "$GITHUB_ENV"
+          [ -s body.md ] || echo "konflate produced no summary (render status: ${status})" > body.md
+
+      - name: Post or update the summary comment
+        run: |
+          # konflate embeds a hidden marker (<!-- konflate:pr-N -->) at the top
+          # of the summary body; upsert the one comment carrying it.
+          marker="konflate:pr-${PR_NUMBER}"
+          repo="${{ github.repository }}"
+          comment_id=$(gh api "repos/${repo}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"${marker}\")) | .id" | head -1)
+          if [ -n "${comment_id}" ]; then
+            gh api -X PATCH "repos/${repo}/issues/comments/${comment_id}" -F body=@body.md >/dev/null
+            echo "updated comment ${comment_id}"
+          else
+            gh api "repos/${repo}/issues/${PR_NUMBER}/comments" -F body=@body.md >/dev/null
+            echo "posted new comment"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gate on the render verdict
+        run: |
+          # ok = rendered cleanly; failures = some resources failed to render;
+          # error = no diff produced. Only a clean render passes.
+          if [ "${{ env.status }}" != "ok" ]; then
+            echo "::error::konflate render verdict: ${{ env.status }}"
+            exit 1
+          fi
