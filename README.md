@@ -73,7 +73,7 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 | [docs/konflate.md](docs/konflate.md) | Rendered Flux PR review: in-cluster konflate instance, write-back to PRs, tokens |
 | [docs/secrets.md](docs/secrets.md) | SOPS + age secret management, key setup, credential rotation |
 | [docs/operations.md](docs/operations.md) | Prerequisites, AWS service quotas, configuration, bootstrap, verification, teardown, validation |
-| [docs/extending.md](docs/extending.md) | Adding a workload cluster, adding apps to the workload clusters |
+| [docs/extending.md](docs/extending.md) | Adding a workload cluster, adding apps to the workload clusters, adding other providers (Azure, Talos, k0smotron) |
 
 ## Repository layout
 

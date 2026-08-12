@@ -74,7 +74,7 @@ mise run teardown       # full teardown (EKS, AWS resources, kind)
 Load these only when the task touches their domain:
 
 - `docs/architecture.md`: reconciliation order, how workload apps are delivered.
-- `docs/extending.md`: adding a workload cluster, adding apps.
+- `docs/extending.md`: adding a workload cluster, adding apps, adding other providers (Azure, Talos, k0smotron).
 - `docs/secrets.md`: SOPS + age setup, credential rotation.
 - `docs/konflate.md`: rendered PR review, tokens, write-back.
 - `docs/aws-iam.md`: EKS Pod Identity, ACK controller roles, reader user.
