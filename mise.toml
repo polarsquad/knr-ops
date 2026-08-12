@@ -1,11 +1,11 @@
 [tools]
-go = "1.24"
-kubectl = "1.34"
-kind = "0.31"
-helm = "4.1"
+go = "1.26"
+kubectl = "1.35"
+kind = "0.32"
+helm = "4.2"
 aws-cli = "latest"
-clusterctl = "1.12.5"
-clusterawsadm = {version = "2.10.2", binary = "clusterawsadm"}
+clusterctl = "1.14.0"
+clusterawsadm = {version = "2.13.0", binary = "clusterawsadm"}
 flux2 = "latest"
 sops = "latest"
 age = "latest"
