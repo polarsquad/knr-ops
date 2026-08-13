@@ -69,8 +69,17 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 
 The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
-The `mac` profile is still work in progress and currently only identifies the
-profile without performing any additional action.
+The `mac` profile is still work in progress. It can create the management kind
+cluster without installing Flux or provisioning AWS resources:
+
+```sh
+mise -E mac install
+mise -E mac run bootstrap
+mise -E mac run teardown
+```
+
+The Mac teardown deletes only the `capi-mgmt` kind cluster. The default
+teardown path suspends Flux and removes the AWS-managed infrastructure.
 
 ## Documentation
 

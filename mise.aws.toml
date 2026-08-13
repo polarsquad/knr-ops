@@ -1,3 +1,10 @@
+[env]
+KNR_OPS_PROFILE = "aws"
+
 [tools]
 aws-cli = "latest"
 clusterawsadm = { version = "2.13.0", binary = "clusterawsadm" }
+
+[tasks.aws-bootstrap]
+description = "Provision the clusterawsadm IAM CloudFormation stack for CAPA"
+run = "clusterawsadm bootstrap iam create-cloudformation-stack --region ${AWS_REGION:-eu-north-1}"

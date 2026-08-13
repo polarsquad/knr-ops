@@ -3,28 +3,39 @@
 # Everything after this script runs is driven by GitOps (Flux).
 set -euo pipefail
 
+PROFILE="${KNR_OPS_PROFILE:-${1:-aws}}"
+case "$PROFILE" in
+  mac|aws) ;;
+  *)
+    echo "ERROR: unsupported profile '$PROFILE' (expected 'mac' or 'aws')" >&2
+    exit 1
+    ;;
+esac
+
 # ── Prerequisites check ───────────────────────────────────────────────────────
 for cmd in kind helm kubectl; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found in PATH"; exit 1; }
 done
 
-: "${GITHUB_TOKEN:?GITHUB_TOKEN must be set (a PAT with read access to the repo)}"
-: "${GIT_REPO_URL:?GIT_REPO_URL must be set}"
+if [ "$PROFILE" = aws ]; then
+  : "${GITHUB_TOKEN:?GITHUB_TOKEN must be set (a PAT with read access to the repo)}"
+  : "${GIT_REPO_URL:?GIT_REPO_URL must be set}"
 
-# GITHUB_USER is only used as the basic-auth username; any non-empty value
-# works with a GitHub PAT, so default to "git".
-GITHUB_USER="${GITHUB_USER:-git}"
+  # GITHUB_USER is only used as the basic-auth username; any non-empty value
+  # works with a GitHub PAT, so default to "git".
+  GITHUB_USER="${GITHUB_USER:-git}"
 
-# ── SOPS age key ──────────────────────────────────────────────────────────────
-# Flux decrypts SOPS-encrypted secrets in Git (e.g. the CAPA AWS credentials)
-# using an age private key loaded into the cluster as the `sops-age` secret.
-# AGE_KEY_FILE defaults to ./age.agekey (gitignored).
-AGE_KEY_FILE="${AGE_KEY_FILE:-age.agekey}"
-if [ ! -f "$AGE_KEY_FILE" ]; then
-  echo "ERROR: age key file not found at '$AGE_KEY_FILE'." >&2
-  echo "       Generate one with:  mise run sops-keygen" >&2
-  echo "       and add its PUBLIC key to .sops.yaml. See docs/secrets.md." >&2
-  exit 1
+  # ── SOPS age key ────────────────────────────────────────────────────────────
+  # Flux decrypts SOPS-encrypted secrets in Git (e.g. the CAPA AWS credentials)
+  # using an age private key loaded into the cluster as the `sops-age` secret.
+  # AGE_KEY_FILE defaults to ./age.agekey (gitignored).
+  AGE_KEY_FILE="${AGE_KEY_FILE:-age.agekey}"
+  if [ ! -f "$AGE_KEY_FILE" ]; then
+    echo "ERROR: age key file not found at '$AGE_KEY_FILE'." >&2
+    echo "       Generate one with:  mise run sops-keygen" >&2
+    echo "       and add its PUBLIC key to .sops.yaml. See docs/secrets.md." >&2
+    exit 1
+  fi
 fi
 
 # ── Prerequisite: container engine (Docker or Podman) ────────────────────────
@@ -96,6 +107,13 @@ echo ">>> Waiting for cluster node to be ready..."
 # Explicitly switch kubectl to use the kind cluster context
 kubectl config use-context kind-capi-mgmt
 kubectl wait --for=condition=Ready node --all --timeout=120s
+
+if [ "$PROFILE" = mac ]; then
+  echo ""
+  echo ">>> Mac profile complete: management kind cluster is ready"
+  echo ">>> No Flux or AWS resources were provisioned"
+  exit 0
+fi
 
 # ── Step 2: Install the Flux Operator via Helm ────────────────────────────────
 echo ">>> Installing Flux Operator..."

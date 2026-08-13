@@ -57,12 +57,8 @@ done
 """
 
 [tasks.bootstrap]
-description = "Bootstrap the kind management cluster and hand off to Flux"
+description = "Bootstrap the management kind cluster and hand off to Flux/GitOps"
 run = "./bootstrap.sh"
-
-[tasks.aws-bootstrap]
-description = "Provision the clusterawsadm IAM CloudFormation stack for CAPA"
-run = "clusterawsadm bootstrap iam create-cloudformation-stack --region ${AWS_REGION:-eu-north-1}"
 
 [tasks.aws-credentials]
 description = "Export AWS credentials as a profile string for SOPS-encrypted secrets"

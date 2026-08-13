@@ -20,8 +20,37 @@
 #
 # Usage:
 #   ./teardown.sh              # Full teardown (k8s + AWS)
+#   KNR_OPS_PROFILE=mac ./teardown.sh  # Delete the management kind cluster
 #   AWS_ONLY=1 ./teardown.sh   # AWS orphan cleanup only (skip k8s steps)
 set -euo pipefail
+
+PROFILE="${KNR_OPS_PROFILE:-${1:-aws}}"
+case "$PROFILE" in
+  mac|aws) ;;
+  *)
+    echo "ERROR: unsupported profile '$PROFILE' (expected 'mac' or 'aws')" >&2
+    exit 1
+    ;;
+esac
+
+if [ "$PROFILE" = mac ] && [ "${AWS_ONLY:-0}" = "1" ]; then
+  echo "ERROR: AWS_ONLY=1 cannot be combined with the mac profile" >&2
+  echo "       Use the AWS profile for AWS-only orphan cleanup" >&2
+  exit 1
+fi
+
+if [ "$PROFILE" = mac ]; then
+  command -v kind >/dev/null 2>&1 \
+    || { echo "ERROR: kind not found in PATH" >&2; exit 1; }
+  if kind get clusters 2>/dev/null | grep -q '^capi-mgmt$'; then
+    echo ">>> Deleting kind management cluster 'capi-mgmt'..."
+    kind delete cluster --name capi-mgmt
+    echo "✓   kind cluster 'capi-mgmt' deleted"
+  else
+    echo ">>> kind management cluster 'capi-mgmt' is not present"
+  fi
+  exit 0
+fi
 
 # Never let the AWS CLI open an interactive pager (it would hang the script).
 export AWS_PAGER=""
