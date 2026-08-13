@@ -108,19 +108,26 @@ echo ">>> Waiting for cluster node to be ready..."
 kubectl config use-context kind-capi-mgmt
 kubectl wait --for=condition=Ready node --all --timeout=120s
 
-if [ "$PROFILE" = mac ]; then
-  echo ""
-  echo ">>> Mac profile complete: management kind cluster is ready"
-  echo ">>> No Flux or AWS resources were provisioned"
-  exit 0
-fi
-
-# ── Step 2: Install the Flux Operator via Helm ────────────────────────────────
+# ── Step 2: Install the Flux Operator ────────────────────────────────────────
 echo ">>> Installing Flux Operator..."
+ANONYMOUS_REGISTRY_CONFIG="$(mktemp)"
+printf '{}\n' > "$ANONYMOUS_REGISTRY_CONFIG"
+cleanup_registry_config() {
+  rm -f "$ANONYMOUS_REGISTRY_CONFIG"
+}
+trap cleanup_registry_config EXIT
 helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
   --namespace flux-system \
   --create-namespace \
-  --wait
+  --wait \
+  --registry-config "$ANONYMOUS_REGISTRY_CONFIG"
+
+if [ "$PROFILE" = mac ]; then
+  echo ""
+  echo ">>> Mac profile complete: management kind cluster and Flux Operator are ready"
+  echo ">>> No GitOps sync or AWS resources were provisioned"
+  exit 0
+fi
 
 # ── Step 3: Create GitHub PAT credentials secret ─────────────────────────────
 # Basic-auth secret consumed by Flux's source-controller to clone the repo.
@@ -178,7 +185,8 @@ helm upgrade --install flux \
   --set instance.sync.url="${GIT_REPO_URL}" \
   --set instance.sync.ref=refs/heads/main \
   --set instance.sync.path=capi-mgmt \
-  --set instance.sync.pullSecret=flux-github-pat
+  --set instance.sync.pullSecret=flux-github-pat \
+  --registry-config "$ANONYMOUS_REGISTRY_CONFIG"
 
 # ── Post-bootstrap health check ───────────────────────────────────────────────
 # Verify the Flux controllers are running before declaring success.

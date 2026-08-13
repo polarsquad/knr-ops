@@ -18,8 +18,9 @@ You also need:
   by `bootstrap.sh`; set `CONTAINER_ENGINE=docker|podman` to override).
 - A GitHub personal access token (PAT) with read access to this repository
   (fine-grained with read-only Contents permission, or classic with `repo`
-  scope).
-- AWS credentials with permission to create EKS clusters, VPCs, and IAM roles.
+  scope) for the AWS profile. The Flux Operator chart is pulled anonymously.
+- AWS credentials with permission to create EKS clusters, VPCs, and IAM roles
+  for the AWS profile.
   For the ACK controllers the same principal additionally needs
   `iam:CreateRole`/`PutRolePolicy`/`GetRole`/`TagRole`,
   `iam:CreateUser`/`PutUserPolicy`/`GetUser`/`GetUserPolicy`/`TagUser`
@@ -57,6 +58,9 @@ cp .env.example .env
 $EDITOR .env
 ```
 
+The Flux Operator chart is pulled anonymously for both profiles. The GitHub PAT,
+AWS credentials, and `AWS_REGION` are only needed with the AWS profile.
+
 ## Bootstrap
 
 ```sh
@@ -77,6 +81,11 @@ This is the only imperative step. It:
 Everything downstream — providers, EKS clusters, workload Flux instances, the
 ACK operator, IAM role, pod identity bindings, and S3 buckets — reconciles
 from Git with no further manual steps.
+
+The Mac profile performs steps 1 and 2 only: it installs the Flux Operator in
+the `capi-mgmt` management cluster, but does not create GitHub or SOPS secrets,
+install a `FluxInstance`, or start GitOps reconciliation. The AWS profile
+performs the complete handoff described above.
 
 Watch reconciliation:
 

@@ -49,15 +49,16 @@ not a developer self-service portal; you are the consumer.
 ## Prerequisites
 
 - Mise
-- GitHub personal access token (PAT) with read access to this repo
-- AWS credentials and quotas established
+- GitHub personal access token (PAT) with read access to this repo for the AWS
+  profile
+- AWS credentials and quotas established for the AWS profile
 
 ## Quickstart
 
 ```sh
 mise trust                  # to enable mise in this repository
 mise install                # installs tools pinned in mise.toml (kubectl, kind, flux, ...)
-cp .env.example .env        # fill in GitHub PAT + AWS settings; gitignored
+cp .env.example .env        # AWS profile: fill in GitHub PAT and AWS settings
 mise run sops-keygen        # first time only: age key for SOPS
 mise run bootstrap          # kind cluster + Flux; everything else is GitOps
 flux get kustomizations --watch
@@ -69,14 +70,19 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 
 The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
-The `mac` profile is still work in progress. It can create the management kind
-cluster without installing Flux or provisioning AWS resources:
+The `mac` profile is still work in progress. It creates the management kind
+cluster and installs the Flux Operator, but does not configure GitOps sync or
+provision AWS resources:
 
 ```sh
 mise -E mac install
 mise -E mac run bootstrap
 mise -E mac run teardown
 ```
+
+The Flux Operator chart is pulled anonymously. The AWS profile requires a
+GitHub PAT so Flux can clone this repository; the Mac profile does not require
+GitHub or AWS credentials.
 
 The Mac teardown deletes only the `capi-mgmt` kind cluster. The default
 teardown path suspends Flux and removes the AWS-managed infrastructure.
