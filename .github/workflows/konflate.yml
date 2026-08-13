@@ -7,7 +7,9 @@ name: konflate
 # runners, so CI runs its own one-shot instance scoped to the triggering PR.
 #
 # Auth uses only the workflow's GITHUB_TOKEN; no PATs or stored secrets.
-# Fork PRs are skipped: rendering one runs untrusted sources through flate.
+# Fork PRs receive a skipped workflow run: rendering one would run untrusted
+# sources through konflate. The job guard below prevents the service and steps
+# from starting for those PRs.
 
 on:
   pull_request:
@@ -30,7 +32,9 @@ jobs:
     name: Rendered Flux diff
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event.pull_request.head.repo.fork == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
     services:
       konflate:
         image: ghcr.io/home-operations/konflate:0.5.0
