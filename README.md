@@ -22,6 +22,8 @@ After the one-time bootstrap, **everything is declared in Git as YAML**.
 1 CAPI cluster creates: 2 clusters, 4 node pools, 2 regions, 2 S3 buckets,
 2 RDS instances, 1 user, 1 role. 0 HCL, 0 state files.
 
+![knr-ops architecture](docs/architecture.png)
+
 ## Who this is for
 
 Platform engineers who already run Kubernetes and want to manage their own
