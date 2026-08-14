@@ -82,7 +82,7 @@ Everything downstream — providers, EKS clusters, workload Flux instances, the
 ACK operator, IAM role, pod identity bindings, and S3 buckets — reconciles
 from Git with no further manual steps.
 
-The local profile performs the cluster, Flux Operator, and FluxInstance steps in
+The local-host profile performs the cluster, Flux Operator, and FluxInstance steps in
 the `capi-mgmt` management cluster, but does not create GitHub or SOPS secrets,
 configure Git sync, or start GitOps reconciliation. The AWS profile adds the
 GitHub/SOPS secrets and configures the FluxInstance to sync `capi-mgmt/`.

@@ -20,26 +20,26 @@
 #
 # Usage:
 #   ./teardown.sh              # Full teardown (k8s + AWS)
-#   KNR_OPS_PROFILE=local ./teardown.sh  # Delete the management kind cluster
+#   KNR_OPS_PROFILE=local-host ./teardown.sh  # Delete the management kind cluster
 #   AWS_ONLY=1 ./teardown.sh   # AWS orphan cleanup only (skip k8s steps)
 set -euo pipefail
 
 PROFILE="${KNR_OPS_PROFILE:-${1:-aws}}"
 case "$PROFILE" in
-  local|aws) ;;
+  local-host|aws) ;;
   *)
-    echo "ERROR: unsupported profile '$PROFILE' (expected 'local' or 'aws')" >&2
+    echo "ERROR: unsupported profile '$PROFILE' (expected 'local-host' or 'aws')" >&2
     exit 1
     ;;
 esac
 
-if [ "$PROFILE" = local ] && [ "${AWS_ONLY:-0}" = "1" ]; then
-  echo "ERROR: AWS_ONLY=1 cannot be combined with the local profile" >&2
+if [ "$PROFILE" = local-host ] && [ "${AWS_ONLY:-0}" = "1" ]; then
+  echo "ERROR: AWS_ONLY=1 cannot be combined with the local-host profile" >&2
   echo "       Use the AWS profile for AWS-only orphan cleanup" >&2
   exit 1
 fi
 
-if [ "$PROFILE" = local ]; then
+if [ "$PROFILE" = local-host ]; then
   command -v kind >/dev/null 2>&1 \
     || { echo "ERROR: kind not found in PATH" >&2; exit 1; }
   if kind get clusters 2>/dev/null | grep -q '^capi-mgmt$'; then
