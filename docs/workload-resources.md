@@ -6,7 +6,7 @@ see [AWS authentication & IAM](./aws-iam.md).
 
 ## Bucket security posture
 
-`apps/base/s3-buckets/bucket.yaml` creates one bucket per cluster
+`workload/base/s3-buckets/bucket.yaml` creates one bucket per cluster
 (`knr-ops-<account>-<cluster>-data`) with:
 
 - all public access blocked
@@ -17,7 +17,7 @@ see [AWS authentication & IAM](./aws-iam.md).
 
 ## RDS instances
 
-`apps/base/rds-instances/dbinstance.yaml` creates one PostgreSQL 17 instance
+`workload/base/rds-instances/dbinstance.yaml` creates one PostgreSQL 17 instance
 per cluster (`knr-ops-<cluster>-db`) in that cluster's own region — the ACK
 RDS controller runs with `aws.region: ${AWS_REGION}`:
 

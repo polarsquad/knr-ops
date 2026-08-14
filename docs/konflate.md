@@ -36,7 +36,7 @@ A single instance runs on the **management cluster**, deployed from
 | Chart | OCI artifact `oci://ghcr.io/home-operations/charts/konflate`, pinned tag (see `helm.yaml`) |
 | Namespace | `konflate` |
 | `config.repo` | `github://polarsquad/knr-ops` |
-| `config.clusterPath` | `""` — render from the repo root, matching this repo's root-relative Flux Kustomization paths (`./capi-mgmt/...`, `./apps/...`) |
+| `config.clusterPath` | `""` — render from the repo root, matching this repo's root-relative Flux Kustomization paths (`./capi-mgmt/...`, `./workload/...`) |
 | `config.prComments` | `true` — post the rendered summary as a PR comment |
 | `config.statusChecks` | `true` — post the `Konflate` commit status with the render verdict |
 | Secret | `konflate-token` (SOPS-encrypted, `konflate-token.sops.yaml`) |

@@ -2,7 +2,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # IAM user for humans: log into the AWS console and assume the per-cluster
 # read-only reader roles (knr-ops-<cluster>-reader, see
-# apps/base/iam-roles/role.yaml) to view the resources this repo creates.
+# workload/base/iam-roles/role.yaml) to view the resources this repo creates.
 # Reconciled by the ACK IAM controller on this (management) cluster.
 #
 # The only permission is sts:AssumeRole on knr-ops-*-reader roles — the user

@@ -39,7 +39,7 @@ finished provisioning the EKS clusters.
 
 ## Per-cluster read-only IAM roles
 
-`apps/base/iam-roles/role.yaml` has each cluster's ACK IAM controller create
+`workload/base/iam-roles/role.yaml` has each cluster's ACK IAM controller create
 one read-only IAM role (`knr-ops-<cluster>-reader`) — IAM is global, so the
 cluster name is part of the role name to keep the two clusters from fighting
 over one role:

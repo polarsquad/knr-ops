@@ -144,7 +144,7 @@ in place.
 ## Validation
 
 Build every kustomize overlay locally before pushing (mirrors CI). This covers
-both `capi-mgmt/` and `apps/`:
+both `capi-mgmt/` and `workload/`:
 
 ```sh
 mise run validate

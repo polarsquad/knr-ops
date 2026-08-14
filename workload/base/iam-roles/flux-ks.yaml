@@ -19,7 +19,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./apps/base/iam-roles
+  path: ./workload/base/iam-roles
   dependsOn:
     - name: aws-operators
   postBuild:

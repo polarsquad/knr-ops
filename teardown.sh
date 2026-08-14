@@ -60,7 +60,7 @@ REGIONS="eu-north-1 eu-west-1"
 
 # Global IAM roles (region-independent): the ACK controller pod-identity roles
 # and the per-cluster reader roles created by the workload ACK IAM controllers
-# (knr-ops-${CLUSTER_NAME}-reader, see apps/base/iam-roles/role.yaml)
+# (knr-ops-${CLUSTER_NAME}-reader, see workload/base/iam-roles/role.yaml)
 GLOBAL_IAM_ROLES="knr-ops-ack-s3-controller knr-ops-ack-rds-controller knr-ops-ack-iam-controller knr-ops-eu-north-1-workload-reader knr-ops-eu-west-1-workload-reader"
 
 # Global IAM users: the console reader user created by the management
@@ -157,7 +157,7 @@ _get_capa_tag_key() {
 }
 
 # RDS instance identifier created by the ACK RDS controller on each workload
-# cluster: knr-ops-${CLUSTER_NAME}-db (see apps/base/rds-instances/dbinstance.yaml
+# cluster: knr-ops-${CLUSTER_NAME}-db (see workload/base/rds-instances/dbinstance.yaml
 # and the cluster-vars ConfigMap in capi-mgmt/addons/flux-apps/flux-instance.yaml).
 _get_rds_instance() {
   case "$1" in
@@ -318,7 +318,7 @@ _cleanup_rds_instance() {
 # ── S3 buckets (created by the ACK S3 controller on workload clusters) ─────────
 # Like the RDS instances, the Bucket CRs live on the workload clusters, so the
 # buckets are orphaned when the clusters are deleted. Buckets are versioned
-# (see apps/base/s3-buckets/bucket.yaml), so every object version AND delete
+# (see workload/base/s3-buckets/bucket.yaml), so every object version AND delete
 # marker must be purged before the bucket itself can be deleted.
 _cleanup_s3_bucket() {
   _bucket="$1"; _bucket_region="$2"

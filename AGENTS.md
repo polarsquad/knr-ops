@@ -19,7 +19,7 @@ resources. There is no app source code here, only declarative infrastructure.
     (HelmChartProxy + ClusterResourceSets).
   - `clusters/`: EKS cluster definitions per region (`eu-north-1`,
     `eu-west-1`).
-- `apps/`: synced by each WORKLOAD cluster's Flux.
+- `workload/`: synced by each WORKLOAD cluster's Flux.
   - `base/`: ACK controllers and S3/RDS/IAM custom resources.
   - `<region>-01/`: per-cluster overlays pointing at `../base`.
 - `bootstrap.sh` / `teardown.sh`: the only imperative steps (one-time

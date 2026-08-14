@@ -3,9 +3,9 @@
 # Per-cluster FluxInstance ConfigMaps, applied to each workload cluster by the
 # ClusterResourceSets below.
 #
-# Each workload cluster runs its own Flux instance syncing the apps/ overlay
-# for its region (apps/eu-north-01, apps/eu-west-01). Those overlays pull in
-# apps/base, which installs the ACK S3 operator and the Bucket CRs.
+# Each workload cluster runs its own Flux instance syncing the workload/ overlay
+# for its region (workload/eu-north-01, workload/eu-west-01). Those overlays pull in
+# workload/base, which installs the ACK S3 operator and the Bucket CRs.
 #
 # Each ConfigMap also ships a `cluster-vars` ConfigMap into flux-system on the
 # workload cluster; the aws-operators / s3-buckets Flux Kustomizations use it
@@ -61,7 +61,7 @@ data:
         kind: GitRepository
         url: "https://github.com/polarsquad/knr-ops"
         ref: "refs/heads/main"
-        path: "apps/eu-north-01"
+        path: "workload/eu-north-01"
         pullSecret: "flux-github-pat"
 ---
 apiVersion: v1
@@ -114,7 +114,7 @@ data:
         kind: GitRepository
         url: "https://github.com/polarsquad/knr-ops"
         ref: "refs/heads/main"
-        path: "apps/eu-west-01"
+        path: "workload/eu-west-01"
         pullSecret: "flux-github-pat"
 ---
 # ══════════════════════════════════════════════════════════════════════════════

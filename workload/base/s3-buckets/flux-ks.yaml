@@ -19,7 +19,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./apps/base/s3-buckets
+  path: ./workload/base/s3-buckets
   dependsOn:
     - name: aws-operators
   postBuild:

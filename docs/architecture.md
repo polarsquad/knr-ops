@@ -85,7 +85,7 @@ flowchart TD
     FA -->|same, per region label| WF2
 
     subgraph wl1["Workload cluster eu-north-1"]
-        WF1["Flux (sync: apps/eu-north-01)"]
+        WF1["Flux (sync: workload/eu-north-01)"]
         AO1["aws-operators Ks<br/>ACK S3 + RDS + IAM controllers (Pod Identity)"]
         SB1["s3-buckets Ks<br/>dependsOn: aws-operators"]
         RI1["rds-instances Ks<br/>dependsOn: aws-operators"]
@@ -96,7 +96,7 @@ flowchart TD
     end
 
     subgraph wl2["Workload cluster eu-west-1"]
-        WF2["Flux (sync: apps/eu-west-01)"]
+        WF2["Flux (sync: workload/eu-west-01)"]
         AO2["aws-operators Ks<br/>ACK S3 + RDS + IAM controllers (Pod Identity)"]
         SB2["s3-buckets Ks<br/>dependsOn: aws-operators"]
         RI2["rds-instances Ks<br/>dependsOn: aws-operators"]
@@ -163,10 +163,10 @@ aws-operators (ACK S3 + RDS + IAM controllers) ▶ s3-buckets (Bucket CRs)
    and `region: <region>`.
 2. `flux-apps` matches those labels: a **HelmChartProxy** installs the Flux
    Operator on every workload cluster, and per-region **ClusterResourceSets**
-   apply a `FluxInstance` (syncing `apps/<region>-01/`), a `cluster-vars`
+   apply a `FluxInstance` (syncing `workload/<region>-01/`), a `cluster-vars`
    ConfigMap (`AWS_REGION`, `CLUSTER_NAME`, `AWS_ACCOUNT_ID` — used by Flux
    `postBuild` substitution), and the Git pull secret.
-3. The workload cluster's Flux reconciles `apps/`: first `aws-operators`
+3. The workload cluster's Flux reconciles `workload/`: first `aws-operators`
    (ACK S3 + RDS + IAM controllers, `wait: true`), then `s3-buckets`,
    `rds-instances`, and `iam-roles` (all `dependsOn: aws-operators`).
 

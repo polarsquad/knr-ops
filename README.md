@@ -115,7 +115,7 @@ teardown path suspends Flux and removes the AWS-managed infrastructure.
 │   │                              (HelmChartProxy + ClusterResourceSets)
 │   └── clusters/                  EKS cluster defs (eu-north-1, eu-west-1;
 │                                  ARM + GPU MachinePools)
-└── apps/                          Synced by each WORKLOAD cluster's Flux
+└── workload/                          Synced by each WORKLOAD cluster's Flux
     ├── base/                      ACK S3/RDS/IAM controllers, Bucket CRs,
     │                              DBInstance CRs, reader Role CRs
     ├── eu-north-01/               Per-cluster overlay (sync target)
