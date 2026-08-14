@@ -5,9 +5,9 @@ set -euo pipefail
 
 PROFILE="${KNR_OPS_PROFILE:-${1:-aws}}"
 case "$PROFILE" in
-  mac|aws) ;;
+  local|aws) ;;
   *)
-    echo "ERROR: unsupported profile '$PROFILE' (expected 'mac' or 'aws')" >&2
+    echo "ERROR: unsupported profile '$PROFILE' (expected 'local' or 'aws')" >&2
     exit 1
     ;;
 esac
@@ -207,6 +207,6 @@ if [ "$PROFILE" = aws ]; then
   echo ">>> Bootstrap complete! Flux is now reconciling from ${GIT_REPO_URL}"
   echo ">>> Watch progress with: flux get kustomizations --watch"
 else
-  echo ">>> Mac profile complete: management kind cluster, Flux Operator, and FluxInstance are ready"
+  echo ">>> Local profile complete: management kind cluster, Flux Operator, and FluxInstance are ready"
   echo ">>> No GitOps sync or AWS resources were provisioned"
 fi

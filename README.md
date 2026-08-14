@@ -70,21 +70,21 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 
 The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
-The `mac` profile is still work in progress. It creates the management kind
+The `local` profile is still work in progress. It creates the management kind
 cluster, installs the Flux Operator and FluxInstance, but does not configure
 GitOps sync or provision AWS resources:
 
 ```sh
-mise -E mac install
-mise -E mac run bootstrap
-mise -E mac run teardown
+mise -E local install
+mise -E local run bootstrap
+mise -E local run teardown
 ```
 
 The Flux charts are pulled anonymously. The AWS profile requires a
-GitHub PAT so Flux can clone this repository; the Mac profile does not require
+GitHub PAT so Flux can clone this repository; the local profile does not require
 GitHub or AWS credentials.
 
-The Mac teardown deletes only the `capi-mgmt` kind cluster. The default
+The local teardown deletes only the `capi-mgmt` kind cluster. The default
 teardown path suspends Flux and removes the AWS-managed infrastructure.
 
 ## Documentation
