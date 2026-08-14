@@ -7,7 +7,7 @@ metadata:
   namespace: default
   labels:
     fluxcd: enabled
-    region: eu-north-1
+    region: eu-west-1
 spec:
   clusterNetwork:
     pods:
@@ -23,7 +23,7 @@ spec:
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
     kind: AWSManagedCluster
-    name: eu-north-1-workload
+    name: eu-west-1-workload
 ---
 # ── EKS Managed Control Plane ────────────────────────────────────────────────
 apiVersion: controlplane.cluster.x-k8s.io/v1beta2
@@ -32,7 +32,7 @@ metadata:
   name: workload-control-plane
   namespace: default
 spec:
-  region: eu-north-1
+  region: eu-west-1
   version: "1.34.6"
   endpointAccess:
     public: true
@@ -48,7 +48,7 @@ spec:
       version: v1.34.6-eksbuild.2
       conflictResolution: overwrite
     # Required for ACK controllers to authenticate via EKS Pod Identity
-    # (associations are created by mgmt/infrastructure/ack-pod-identity/)
+    # (associations are created by mgmt/aws/infrastructure/ack-pod-identity/)
     - name: eks-pod-identity-agent
       version: v1.3.10-eksbuild.3
       conflictResolution: overwrite
@@ -132,8 +132,8 @@ spec:
   amiType: AL2023_ARM_64_STANDARD
   capacityType: onDemand
   availabilityZones:
-    - eu-north-1a
-    - eu-north-1b
-    - eu-north-1c
+    - eu-west-1a
+    - eu-west-1b
+    - eu-west-1c
   labels:
     node.kubernetes.io/arch: arm64

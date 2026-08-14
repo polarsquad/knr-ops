@@ -2,19 +2,19 @@
 
 ## Adding a workload cluster
 
-1. Create `mgmt/clusters/<region>/<env>/` with a `cluster.yaml`,
+1. Create `mgmt/aws/clusters/<region>/<env>/` with a `cluster.yaml`,
    `kustomization.yaml` (set `namePrefix`), and `capi-nameref.yaml` (so CAPI
    cross-references get the prefix applied — see the existing regions).
 2. Label the `Cluster` with `fluxcd: enabled` **and** `region: <region>`, and
    include the `eks-pod-identity-agent` addon in the `AWSManagedControlPlane`.
-3. Register it in `mgmt/clusters/<region>/kustomization.yaml` and add a
-   `Kustomization` entry in `mgmt/clusters/flux-ks.yaml` with
+3. Register it in `mgmt/aws/clusters/<region>/kustomization.yaml` and add a
+   `Kustomization` entry in `mgmt/aws/clusters/flux-ks.yaml` with
    `dependsOn: [capa-system]`.
-4. In `mgmt/addons/flux-apps/flux-instance.yaml`, add a per-region
+4. In `mgmt/aws/addons/flux-apps/flux-instance.yaml`, add a per-region
    FluxInstance ConfigMap (sync path `workload/<region>-01`, plus `cluster-vars`)
    and a matching `ClusterResourceSet`.
 5. Add a `PodIdentityAssociation` for the new cluster in
-   `mgmt/infrastructure/ack-pod-identity/pod-identity-associations.yaml`
+   `mgmt/aws/infrastructure/ack-pod-identity/pod-identity-associations.yaml`
    (use the `services.k8s.aws/region` annotation for non-default regions).
 6. Create `workload/<region>-01/kustomization.yaml` pointing at `../base`.
 7. Run `mise run validate`, commit, and push.
@@ -36,14 +36,14 @@ Follow the `aws-operators` / `s3-buckets` pattern in `workload/base/`:
 
 The management cluster is not AWS-only. Providers are declared as CAPI
 operator CRs (`operator.cluster.x-k8s.io/v1alpha2`) under
-`mgmt/capi-providers/`, one directory per provider namespace, and
-registered in `mgmt/capi-providers/flux-ks.yaml`. The operator resolves
+`mgmt/aws/capi-providers/`, one directory per provider namespace, and
+registered in `mgmt/aws/capi-providers/flux-ks.yaml`. The operator resolves
 the well-known provider names (`aws`, `azure`, `talos`,
 `k0sproject-k0smotron`) from the same built-in registry `clusterctl` uses, so
 a provider is just a typed CR with a pinned version:
 
 ```
-mgmt/capi-providers/<name>-system/
+mgmt/aws/capi-providers/<name>-system/
   namespace.yaml
   kustomization.yaml        # lists namespace.yaml + providers.yaml (+ secrets)
   providers.yaml            # the typed provider CR(s)
@@ -64,16 +64,16 @@ speak v1beta2.
 
 CAPA is the provider this repo already runs; use it as the template:
 
-- `mgmt/capi-providers/capa-system/providers.yaml` declares
+- `mgmt/aws/capi-providers/capa-system/providers.yaml` declares
   `InfrastructureProvider aws` v2.13.0 with `configSecret: aws-credentials`
   and the EKS feature gates
   (`EKS=true,EKSEnableIAM=true,EKSAllowAddRoles=true,MachinePool=true`).
 - `aws-credentials.sops.yaml` carries `AWS_B64ENCODED_CREDENTIALS`, produced
   by `mise run aws-credentials` (rotation: [docs/secrets.md](./secrets.md)).
-- Cluster definitions in `mgmt/clusters/<region>/<env>/` use
+- Cluster definitions in `mgmt/aws/clusters/<region>/<env>/` use
   `AWSManagedControlPlane` + `AWSManagedMachinePool` (EKS). Per-cluster IAM
   for the ACK controllers is wired through
-  `mgmt/infrastructure/ack-pod-identity/` (see
+  `mgmt/aws/infrastructure/ack-pod-identity/` (see
   [docs/aws-iam.md](./aws-iam.md)).
 
 ### Azure (CAPZ)
@@ -82,7 +82,7 @@ CAPZ v1.26.0 speaks v1beta2 and bundles Azure Service Operator (ASO) v2.18.0,
 which backs the managed-AKS path.
 
 1. Create a service principal (`az ad sp create-for-rbac`) and store two
-   SOPS secrets in `mgmt/capi-providers/capz-system/`:
+   SOPS secrets in `mgmt/aws/capi-providers/capz-system/`:
    - the SP client secret, referenced by an `AzureClusterIdentity` CR
      (environment-variable auth is deprecated upstream; see the CAPZ
      multitenancy docs);
@@ -106,7 +106,7 @@ which backs the managed-AKS path.
    decryption and a healthCheck on
    `azureclusters.infrastructure.cluster.x-k8s.io` (add the
    `azureasomanagedclusters...` CRD when using the AKS path).
-4. Define AKS clusters in `mgmt/clusters/<location>/<env>/` with the
+4. Define AKS clusters in `mgmt/aws/clusters/<location>/<env>/` with the
    `AzureASOManagedCluster` / `AzureASOManagedControlPlane` /
    `AzureASOManagedMachinePool` types, keeping the repo conventions:
    `namePrefix` kustomization, `capi-nameref.yaml`, the `fluxcd: enabled` and
@@ -123,7 +123,7 @@ supplies the machines.
 1. Two directories, matching the upstream namespace conventions:
 
    ```yaml
-   # mgmt/capi-providers/cabpt-system/providers.yaml
+   # mgmt/aws/capi-providers/cabpt-system/providers.yaml
    apiVersion: operator.cluster.x-k8s.io/v1alpha2
    kind: BootstrapProvider
    metadata:
@@ -132,7 +132,7 @@ supplies the machines.
    spec:
      version: "v0.6.11"
    ---
-   # mgmt/capi-providers/cacppt-system/providers.yaml
+   # mgmt/aws/capi-providers/cacppt-system/providers.yaml
    apiVersion: operator.cluster.x-k8s.io/v1alpha2
    kind: ControlPlaneProvider
    metadata:
@@ -159,7 +159,7 @@ k0smotron v2.1.0 is v1beta2-native and ships bootstrap, control plane, and
 infrastructure providers under one name:
 
 ```yaml
-# mgmt/capi-providers/k0smotron-system/providers.yaml
+# mgmt/aws/capi-providers/k0smotron-system/providers.yaml
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: BootstrapProvider
 metadata:

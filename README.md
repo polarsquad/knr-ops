@@ -104,7 +104,7 @@ teardown path suspends Flux and removes the AWS-managed infrastructure.
 ```
 ├── bootstrap.sh / teardown.sh     One-time imperative bootstrap / full teardown
 ├── docs/                          Detailed documentation (see table above)
-├── mgmt/                     Synced by the MANAGEMENT cluster's Flux
+├── mgmt/aws/                     Synced by the MANAGEMENT cluster's Flux
 │   ├── infrastructure/            cert-manager, CAPI operator, CAPA identity,
 │   │                              ACK controllers, pod-identity roles,
 │   │                              account-global IAM (reader console user),

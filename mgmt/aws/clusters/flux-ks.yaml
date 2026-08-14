@@ -12,7 +12,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/clusters/eu-north-1
+  path: ./mgmt/aws/clusters/eu-north-1
   dependsOn:
     - name: capa-system
 ---
@@ -30,6 +30,6 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/clusters/eu-west-1
+  path: ./mgmt/aws/clusters/eu-west-1
   dependsOn:
     - name: capa-system

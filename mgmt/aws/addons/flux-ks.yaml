@@ -12,7 +12,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/addons/flux-apps
+  path: ./mgmt/aws/addons/flux-apps
   dependsOn:
     - name: caaph-system
   decryption:

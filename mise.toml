@@ -15,7 +15,7 @@ env_file = ".env"
 description = "Build every kustomize overlay to catch structural/reference errors"
 run = '''
 fail=0
-for dir in $(find mgmt apps -name kustomization.yaml -exec dirname {} \; | sort -u); do
+for dir in $(find mgmt workload -name kustomization.yaml -exec dirname {} \; | sort -u); do
   echo "==> kustomize build $dir"
   if ! kubectl kustomize "$dir" >/dev/null; then
     echo "    FAILED: $dir" >&2
@@ -50,7 +50,7 @@ run = "sops --decrypt --input-type yaml --output-type yaml"
 [tasks.sops-updatekeys]
 description = "Re-encrypt all *.sops.yaml files to match recipients in .sops.yaml"
 run = """
-for f in $(find mgmt -name '*.sops.yaml'); do
+for f in $(find mgmt/aws -name '*.sops.yaml'); do
   echo "==> updatekeys $f"
   sops updatekeys --yes "$f"
 done
@@ -74,7 +74,7 @@ run = '''
 KUBECONFIG_FILE="${KUBECONFIG_FILE:-$HOME/.kube/knr-ops-workloads.yaml}"
 fail=0
 # Regions are discovered from the cluster definitions in Git.
-for region in $(find mgmt/clusters -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort); do
+for region in $(find mgmt/aws/clusters -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort); do
   cluster="default_${region}-workload-control-plane"
   alias="${region}-workload"
   echo "==> ${region}: ${cluster} -> context '${alias}'"

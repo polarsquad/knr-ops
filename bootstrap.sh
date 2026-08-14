@@ -179,7 +179,7 @@ if [ "$PROFILE" = aws ]; then
     --set instance.sync.kind=GitRepository
     --set instance.sync.url="${GIT_REPO_URL}"
     --set instance.sync.ref=refs/heads/main
-    --set instance.sync.path=mgmt
+    --set instance.sync.path=mgmt/aws
     --set instance.sync.pullSecret=flux-github-pat
   )
 fi
@@ -199,7 +199,7 @@ kubectl wait --namespace flux-system --for=condition=ready pod \
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 # Everything else is driven by GitOps. The FluxInstance above syncs the
-# mgmt/ directory, whose top-level kustomization.yaml wires in the
+# mgmt/aws/ directory, whose top-level kustomization.yaml wires in the
 # infrastructure, capi-providers, addons, and clusters Kustomizations with
 # the correct dependsOn ordering. No further imperative steps are required.
 echo ""

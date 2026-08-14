@@ -6,7 +6,7 @@
 # changes, render failures, danger lint) instead of raw file diffs. A single
 # instance on the MANAGEMENT cluster tracks github://polarsquad/knr-ops and
 # renders from the repo root, which is where every Flux Kustomization path in
-# this repo (./mgmt/..., ./workload/...) resolves against.
+# this repo (./mgmt/aws/..., ./workload/...) resolves against.
 #
 # Chart is published as an OCI artifact on GHCR.
 #

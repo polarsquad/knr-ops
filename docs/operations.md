@@ -76,7 +76,7 @@ This is the only imperative step. It:
 2. Installs the Flux Operator (Helm).
 3. Creates the `flux-github-pat` secret (for Git access) and the `sops-age`
    secret (the age private key Flux uses to decrypt SOPS-encrypted secrets).
-4. Installs a `FluxInstance` that syncs `mgmt/` and hands off to GitOps.
+4. Installs a `FluxInstance` that syncs `mgmt/aws/` and hands off to GitOps.
 
 Everything downstream — providers, EKS clusters, workload Flux instances, the
 ACK operator, IAM role, pod identity bindings, and S3 buckets — reconciles
@@ -85,7 +85,7 @@ from Git with no further manual steps.
 The local-host profile performs the cluster, Flux Operator, and FluxInstance steps in
 the `mgmt` management cluster, but does not create GitHub or SOPS secrets,
 configure Git sync, or start GitOps reconciliation. The AWS profile adds the
-GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/`.
+GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/aws/`.
 
 Watch reconciliation:
 
@@ -144,7 +144,7 @@ in place.
 ## Validation
 
 Build every kustomize overlay locally before pushing (mirrors CI). This covers
-both `mgmt/` and `workload/`:
+both `mgmt/aws/` and `workload/`:
 
 ```sh
 mise run validate

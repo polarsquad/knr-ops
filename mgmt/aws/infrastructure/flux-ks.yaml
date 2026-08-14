@@ -13,7 +13,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/cert-manager
+  path: ./mgmt/aws/infrastructure/cert-manager
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -29,7 +29,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/capi-operator
+  path: ./mgmt/aws/infrastructure/capi-operator
   dependsOn:
     - name: cert-manager
 ---
@@ -47,7 +47,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/aws-identity
+  path: ./mgmt/aws/infrastructure/aws-identity
   dependsOn:
     - name: capi-operator
 ---
@@ -65,7 +65,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/aws-clusters-resources
+  path: ./mgmt/aws/infrastructure/aws-clusters-resources
   dependsOn:
     - name: capa-identity
 ---
@@ -85,7 +85,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/ack-controllers
+  path: ./mgmt/aws/infrastructure/ack-controllers
   decryption:
     provider: sops
     secretRef:
@@ -105,7 +105,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/ack-pod-identity
+  path: ./mgmt/aws/infrastructure/ack-pod-identity
   dependsOn:
     - name: ack-controllers
 ---
@@ -123,7 +123,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/aws-global-iam
+  path: ./mgmt/aws/infrastructure/aws-global-iam
   dependsOn:
     - name: ack-controllers
 ---
@@ -141,7 +141,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./mgmt/infrastructure/konflate
+  path: ./mgmt/aws/infrastructure/konflate
   decryption:
     provider: sops
     secretRef:
