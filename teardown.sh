@@ -42,12 +42,12 @@ fi
 if [ "$PROFILE" = local-host ]; then
   command -v kind >/dev/null 2>&1 \
     || { echo "ERROR: kind not found in PATH" >&2; exit 1; }
-  if kind get clusters 2>/dev/null | grep -q '^capi-mgmt$'; then
-    echo ">>> Deleting kind management cluster 'capi-mgmt'..."
-    kind delete cluster --name capi-mgmt
-    echo "✓   kind cluster 'capi-mgmt' deleted"
+  if kind get clusters 2>/dev/null | grep -q '^mgmt$'; then
+    echo ">>> Deleting kind management cluster 'mgmt'..."
+    kind delete cluster --name mgmt
+    echo "✓   kind cluster 'mgmt' deleted"
   else
-    echo ">>> kind management cluster 'capi-mgmt' is not present"
+    echo ">>> kind management cluster 'mgmt' is not present"
   fi
   exit 0
 fi
@@ -64,7 +64,7 @@ REGIONS="eu-north-1 eu-west-1"
 GLOBAL_IAM_ROLES="knr-ops-ack-s3-controller knr-ops-ack-rds-controller knr-ops-ack-iam-controller knr-ops-eu-north-1-workload-reader knr-ops-eu-west-1-workload-reader"
 
 # Global IAM users: the console reader user created by the management
-# cluster's ACK IAM controller (capi-mgmt/infrastructure/aws-global-iam/
+# cluster's ACK IAM controller (mgmt/infrastructure/aws-global-iam/
 # reader-user.yaml). Users need different cleanup than roles: login profile
 # (console password) + inline policies + the user itself.
 GLOBAL_IAM_USERS="knr-ops-reader"
@@ -95,16 +95,16 @@ _kind_safe_to_delete() {
 _delete_kind_if_safe() {
   if ! _kind_safe_to_delete; then
     echo ""
-    warn "Refusing to delete kind cluster 'capi-mgmt': CAPI clusters were not"
+    warn "Refusing to delete kind cluster 'mgmt': CAPI clusters were not"
     warn "confirmed deleted. Leaving CAPA running so AWS resources can continue"
     warn "deprovisioning. Re-run teardown once 'kubectl get clusters -A' is empty,"
     warn "or set FORCE_KIND_DELETE=1 to force-delete kind and accept orphaned AWS resources."
     return 0
   fi
-  info "Deleting kind management cluster 'capi-mgmt'..."
-  kind delete cluster --name capi-mgmt 2>&1 \
-    && success "kind cluster 'capi-mgmt' deleted" \
-    || warn "kind cluster 'capi-mgmt' could not be deleted – it may already be gone"
+  info "Deleting kind management cluster 'mgmt'..."
+  kind delete cluster --name mgmt 2>&1 \
+    && success "kind cluster 'mgmt' deleted" \
+    || warn "kind cluster 'mgmt' could not be deleted – it may already be gone"
 }
 
 # Fires on every exit (clean, error, or signal). Cluster-aware: if clusters
@@ -137,7 +137,7 @@ _get_eks_cluster() {
 }
 
 # CLUSTER_NAME as substituted into the workload manifests (cluster-vars
-# ConfigMap in capi-mgmt/addons/flux-apps/flux-instance.yaml). Used to derive
+# ConfigMap in mgmt/addons/flux-apps/flux-instance.yaml). Used to derive
 # the S3 bucket name, the CAPA ownership tag, and to sweep CAPA-created IAM
 # roles by name.
 _get_cluster_name() {
@@ -158,7 +158,7 @@ _get_capa_tag_key() {
 
 # RDS instance identifier created by the ACK RDS controller on each workload
 # cluster: knr-ops-${CLUSTER_NAME}-db (see workload/base/rds-instances/dbinstance.yaml
-# and the cluster-vars ConfigMap in capi-mgmt/addons/flux-apps/flux-instance.yaml).
+# and the cluster-vars ConfigMap in mgmt/addons/flux-apps/flux-instance.yaml).
 _get_rds_instance() {
   case "$1" in
     eu-north-1) echo "knr-ops-eu-north-1-workload-db" ;;

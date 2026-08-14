@@ -11,7 +11,7 @@ everything else: CAPA-managed EKS workload clusters, per-cluster Flux
 instances (CAPI addons), and ACK operators (S3, RDS, IAM) managing cloud
 resources. There is no app source code here, only declarative infrastructure.
 
-- `capi-mgmt/`: synced by the MANAGEMENT cluster's Flux.
+- `mgmt/`: synced by the MANAGEMENT cluster's Flux.
   - `infrastructure/`: cert-manager, CAPI operator, CAPA identity, ACK
     controllers, pod-identity roles, account-global IAM, konflate.
   - `capi-providers/`: capi-system, capa-system, caaph-system.

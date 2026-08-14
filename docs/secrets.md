@@ -6,7 +6,7 @@ safely in Git and Flux decrypts them at reconcile time.
 
 - **`.sops.yaml`** declares the age *public* key (safe to commit) and a rule
   that encrypts only `data`/`stringData` fields of any `*.sops.yaml` file under
-  `capi-mgmt/`.
+  `mgmt/`.
 - The age *private* key lives in `age.agekey` (gitignored). `bootstrap.sh`
   loads it into the cluster as the `sops-age` secret in `flux-system`.
 
@@ -15,10 +15,10 @@ with `spec.decryption.provider: sops`):
 
 | File | Consumed by | Purpose |
 |---|---|---|
-| `capi-mgmt/capi-providers/capa-system/aws-credentials.sops.yaml` | `capa-system` | CAPA controller AWS credentials |
-| `capi-mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml` | `ack-controllers` | ACK IAM/EKS controller AWS credentials (shared-credentials-file format) |
-| `capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml` | `flux-apps` | GitHub PAT pull secret (basic auth), delivered to each workload cluster via ClusterResourceSet so its Flux can clone this (private) repo |
-| `capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml` | `konflate` | `KONFLATE_TOKEN` (read-only GitHub PAT so konflate can list PRs and clone this private repo) and `KONFLATE_WRITE_TOKEN` (write-back credential konflate uses to post the PR summary comment and the `Konflate` commit status) |
+| `mgmt/capi-providers/capa-system/aws-credentials.sops.yaml` | `capa-system` | CAPA controller AWS credentials |
+| `mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml` | `ack-controllers` | ACK IAM/EKS controller AWS credentials (shared-credentials-file format) |
+| `mgmt/addons/flux-apps/flux-pull-secret.sops.yaml` | `flux-apps` | GitHub PAT pull secret (basic auth), delivered to each workload cluster via ClusterResourceSet so its Flux can clone this (private) repo |
+| `mgmt/infrastructure/konflate/konflate-token.sops.yaml` | `konflate` | `KONFLATE_TOKEN` (read-only GitHub PAT so konflate can list PRs and clone this private repo) and `KONFLATE_WRITE_TOKEN` (write-back credential konflate uses to post the PR summary comment and the `Konflate` commit status) |
 
 ## First-time setup
 
@@ -39,12 +39,12 @@ mise run sops-updatekeys
 # CAPA — generate the base64 profile (requires AWS creds in your shell env):
 clusterawsadm bootstrap credentials encode-as-profile
 # Put the value into stringData.AWS_B64ENCODED_CREDENTIALS, then encrypt:
-$EDITOR capi-mgmt/capi-providers/capa-system/aws-credentials.sops.yaml
-mise run sops-encrypt capi-mgmt/capi-providers/capa-system/aws-credentials.sops.yaml
+$EDITOR mgmt/capi-providers/capa-system/aws-credentials.sops.yaml
+mise run sops-encrypt mgmt/capi-providers/capa-system/aws-credentials.sops.yaml
 
 # ACK — standard AWS shared-credentials-file format under stringData.credentials:
-$EDITOR capi-mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml
-mise run sops-encrypt capi-mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml
+$EDITOR mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml
+mise run sops-encrypt mgmt/infrastructure/ack-controllers/aws-credentials.sops.yaml
 ```
 
 View a decrypted secret without changing it:
@@ -68,9 +68,9 @@ To set or rotate the PAT in the workload clusters' pull secret:
 # Decrypt in place, put the PAT into the nested stringData.password field,
 # then re-encrypt:
 mise x -- sops --decrypt --in-place --input-type yaml --output-type yaml \
-  capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
-$EDITOR capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
-mise run sops-encrypt capi-mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
+  mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
+$EDITOR mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
+mise run sops-encrypt mgmt/addons/flux-apps/flux-pull-secret.sops.yaml
 ```
 
 Remember to also update `GITHUB_TOKEN` in `.env` so the next bootstrap uses
@@ -86,9 +86,9 @@ What each token does is covered in [PR review: konflate](./konflate.md).
 # Commit statuses R/W on this repo, or a classic PAT with `repo` scope),
 # then re-encrypt:
 mise x -- sops --decrypt --in-place --input-type yaml --output-type yaml \
-  capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml
-$EDITOR capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml
-mise run sops-encrypt capi-mgmt/infrastructure/konflate/konflate-token.sops.yaml
+  mgmt/infrastructure/konflate/konflate-token.sops.yaml
+$EDITOR mgmt/infrastructure/konflate/konflate-token.sops.yaml
+mise run sops-encrypt mgmt/infrastructure/konflate/konflate-token.sops.yaml
 ```
 
 Keep the two tokens separate: the read token (`KONFLATE_TOKEN`) should carry

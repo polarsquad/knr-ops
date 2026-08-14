@@ -48,7 +48,7 @@ spec:
       version: v1.34.6-eksbuild.2
       conflictResolution: overwrite
     # Required for ACK controllers to authenticate via EKS Pod Identity
-    # (associations are created by capi-mgmt/infrastructure/ack-pod-identity/)
+    # (associations are created by mgmt/infrastructure/ack-pod-identity/)
     - name: eks-pod-identity-agent
       version: v1.3.10-eksbuild.3
       conflictResolution: overwrite

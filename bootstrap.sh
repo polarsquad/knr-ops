@@ -84,16 +84,16 @@ esac
 echo ">>> Using container engine: ${CONTAINER_ENGINE} (socket: ${ENGINE_SOCK})"
 
 # ── Step 1: Create the kind management cluster ────────────────────────────────
-echo ">>> Creating kind cluster 'capi-mgmt'..."
+echo ">>> Creating kind cluster 'mgmt'..."
 # Check if cluster already exists and delete it (idempotent)
-if kind get clusters 2>/dev/null | grep -q "^capi-mgmt$"; then
-  echo ">>> Cluster 'capi-mgmt' already exists – recreating..."
-  kind delete cluster --name capi-mgmt
+if kind get clusters 2>/dev/null | grep -q "^mgmt$"; then
+  echo ">>> Cluster 'mgmt' already exists – recreating..."
+  kind delete cluster --name mgmt
 fi
 # The engine socket is mounted at the Docker socket path inside the node, so
 # consumers always find a Docker-compatible API at /var/run/docker.sock
 # (podman serves the Docker-compatible API on its own socket).
-kind create cluster --name capi-mgmt --config - <<EOF
+kind create cluster --name mgmt --config - <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -105,7 +105,7 @@ EOF
 
 echo ">>> Waiting for cluster node to be ready..."
 # Explicitly switch kubectl to use the kind cluster context
-kubectl config use-context kind-capi-mgmt
+kubectl config use-context kind-mgmt
 kubectl wait --for=condition=Ready node --all --timeout=120s
 
 # ── Step 2: Install the Flux Operator ────────────────────────────────────────
@@ -179,7 +179,7 @@ if [ "$PROFILE" = aws ]; then
     --set instance.sync.kind=GitRepository
     --set instance.sync.url="${GIT_REPO_URL}"
     --set instance.sync.ref=refs/heads/main
-    --set instance.sync.path=capi-mgmt
+    --set instance.sync.path=mgmt
     --set instance.sync.pullSecret=flux-github-pat
   )
 fi
@@ -199,7 +199,7 @@ kubectl wait --namespace flux-system --for=condition=ready pod \
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 # Everything else is driven by GitOps. The FluxInstance above syncs the
-# capi-mgmt/ directory, whose top-level kustomization.yaml wires in the
+# mgmt/ directory, whose top-level kustomization.yaml wires in the
 # infrastructure, capi-providers, addons, and clusters Kustomizations with
 # the correct dependsOn ordering. No further imperative steps are required.
 echo ""

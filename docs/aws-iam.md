@@ -54,7 +54,7 @@ over one role:
 
 ## Console access: the `knr-ops-reader` IAM user
 
-`capi-mgmt/infrastructure/aws-iam/reader-user.yaml` has the
+`mgmt/infrastructure/aws-iam/reader-user.yaml` has the
 **management** cluster's ACK IAM controller create one IAM `User`
 (`knr-ops-reader`) whose only permission is `sts:AssumeRole` on
 `arn:aws:iam::*:role/knr-ops-*-reader` — it can see nothing directly and is

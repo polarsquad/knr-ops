@@ -13,7 +13,7 @@ running on each workload cluster.
 ```mermaid
 flowchart TD
     subgraph bootstrap["Bootstrap (one-time, bootstrap.sh)"]
-        KIND[kind cluster: capi-mgmt]
+        KIND[kind cluster: mgmt]
         HELM[Helm: flux-operator + FluxInstance]
         SEC[Secrets: flux-github-pat + sops-age]
         KIND --> HELM
@@ -24,7 +24,7 @@ flowchart TD
         REPO[(main branch)]
     end
 
-    HELM -->|"sync: capi-mgmt/"| REPO
+    HELM -->|"sync: mgmt/"| REPO
 
     subgraph mgmt["Management cluster - Flux Kustomizations (dependsOn order)"]
         FS[flux-system root]
@@ -139,7 +139,7 @@ konflate (no dependencies)
 
 The management cluster also runs a single
 [konflate](https://github.com/home-operations/konflate) instance
-(`capi-mgmt/infrastructure/konflate/`), pointed at this repo
+(`mgmt/infrastructure/konflate/`), pointed at this repo
 (`github://polarsquad/knr-ops`, rendering from the repo root). It renders each
 open PR at its merge-base and head and shows the diff of the *rendered* Flux
 output — blast radius, image changes, render failures, and danger lint —
@@ -159,7 +159,7 @@ aws-operators (ACK S3 + RDS + IAM controllers) ▶ s3-buckets (Bucket CRs)
 
 ## How workload apps are delivered
 
-1. Each `Cluster` in `capi-mgmt/clusters/` carries labels `fluxcd: enabled`
+1. Each `Cluster` in `mgmt/clusters/` carries labels `fluxcd: enabled`
    and `region: <region>`.
 2. `flux-apps` matches those labels: a **HelmChartProxy** installs the Flux
    Operator on every workload cluster, and per-region **ClusterResourceSets**

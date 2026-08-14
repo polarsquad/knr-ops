@@ -12,7 +12,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./capi-mgmt/capi-providers/capi-system
+  path: ./mgmt/capi-providers/capi-system
   dependsOn:
     - name: capi-operator
 ---
@@ -30,7 +30,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./capi-mgmt/capi-providers/capa-system
+  path: ./mgmt/capi-providers/capa-system
   dependsOn:
     - name: capi-system
   decryption:
@@ -59,7 +59,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./capi-mgmt/capi-providers/caaph-system
+  path: ./mgmt/capi-providers/caaph-system
   dependsOn:
     - name: capi-system
   healthChecks:

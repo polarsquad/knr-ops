@@ -84,7 +84,7 @@ The Flux charts are pulled anonymously. The AWS profile requires a
 GitHub PAT so Flux can clone this repository; the local-host profile does not require
 GitHub or AWS credentials.
 
-The local-host teardown deletes only the `capi-mgmt` kind cluster. The default
+The local-host teardown deletes only the `mgmt` kind cluster. The default
 teardown path suspends Flux and removes the AWS-managed infrastructure.
 
 ## Documentation
@@ -104,7 +104,7 @@ teardown path suspends Flux and removes the AWS-managed infrastructure.
 ```
 ├── bootstrap.sh / teardown.sh     One-time imperative bootstrap / full teardown
 ├── docs/                          Detailed documentation (see table above)
-├── capi-mgmt/                     Synced by the MANAGEMENT cluster's Flux
+├── mgmt/                     Synced by the MANAGEMENT cluster's Flux
 │   ├── infrastructure/            cert-manager, CAPI operator, CAPA identity,
 │   │                              ACK controllers, pod-identity roles,
 │   │                              account-global IAM (reader console user),

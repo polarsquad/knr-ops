@@ -72,20 +72,20 @@ mise run bootstrap   # or: ./bootstrap.sh
 
 This is the only imperative step. It:
 
-1. Creates the `capi-mgmt` kind cluster.
+1. Creates the `mgmt` kind cluster.
 2. Installs the Flux Operator (Helm).
 3. Creates the `flux-github-pat` secret (for Git access) and the `sops-age`
    secret (the age private key Flux uses to decrypt SOPS-encrypted secrets).
-4. Installs a `FluxInstance` that syncs `capi-mgmt/` and hands off to GitOps.
+4. Installs a `FluxInstance` that syncs `mgmt/` and hands off to GitOps.
 
 Everything downstream — providers, EKS clusters, workload Flux instances, the
 ACK operator, IAM role, pod identity bindings, and S3 buckets — reconciles
 from Git with no further manual steps.
 
 The local-host profile performs the cluster, Flux Operator, and FluxInstance steps in
-the `capi-mgmt` management cluster, but does not create GitHub or SOPS secrets,
+the `mgmt` management cluster, but does not create GitHub or SOPS secrets,
 configure Git sync, or start GitOps reconciliation. The AWS profile adds the
-GitHub/SOPS secrets and configures the FluxInstance to sync `capi-mgmt/`.
+GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/`.
 
 Watch reconciliation:
 
@@ -144,7 +144,7 @@ in place.
 ## Validation
 
 Build every kustomize overlay locally before pushing (mirrors CI). This covers
-both `capi-mgmt/` and `workload/`:
+both `mgmt/` and `workload/`:
 
 ```sh
 mise run validate

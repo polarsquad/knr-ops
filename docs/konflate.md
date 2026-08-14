@@ -27,8 +27,8 @@ Reporting happens two ways:
 ## Deployment
 
 A single instance runs on the **management cluster**, deployed from
-`capi-mgmt/infrastructure/konflate/` by the `konflate` Flux Kustomization
-(`capi-mgmt/infrastructure/flux-ks.yaml` — SOPS decryption enabled, no
+`mgmt/infrastructure/konflate/` by the `konflate` Flux Kustomization
+(`mgmt/infrastructure/flux-ks.yaml` — SOPS decryption enabled, no
 `dependsOn`, so it comes up independently of the CAPI/ACK chains).
 
 | Piece | Detail |
@@ -36,7 +36,7 @@ A single instance runs on the **management cluster**, deployed from
 | Chart | OCI artifact `oci://ghcr.io/home-operations/charts/konflate`, pinned tag (see `helm.yaml`) |
 | Namespace | `konflate` |
 | `config.repo` | `github://polarsquad/knr-ops` |
-| `config.clusterPath` | `""` — render from the repo root, matching this repo's root-relative Flux Kustomization paths (`./capi-mgmt/...`, `./workload/...`) |
+| `config.clusterPath` | `""` — render from the repo root, matching this repo's root-relative Flux Kustomization paths (`./mgmt/...`, `./workload/...`) |
 | `config.prComments` | `true` — post the rendered summary as a PR comment |
 | `config.statusChecks` | `true` — post the `Konflate` commit status with the render verdict |
 | Secret | `konflate-token` (SOPS-encrypted, `konflate-token.sops.yaml`) |
