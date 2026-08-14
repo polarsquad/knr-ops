@@ -71,8 +71,8 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
 The `mac` profile is still work in progress. It creates the management kind
-cluster and installs the Flux Operator, but does not configure GitOps sync or
-provision AWS resources:
+cluster, installs the Flux Operator and FluxInstance, but does not configure
+GitOps sync or provision AWS resources:
 
 ```sh
 mise -E mac install
@@ -80,7 +80,7 @@ mise -E mac run bootstrap
 mise -E mac run teardown
 ```
 
-The Flux Operator chart is pulled anonymously. The AWS profile requires a
+The Flux charts are pulled anonymously. The AWS profile requires a
 GitHub PAT so Flux can clone this repository; the Mac profile does not require
 GitHub or AWS credentials.
 

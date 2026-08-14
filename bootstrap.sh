@@ -122,20 +122,14 @@ helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-opera
   --wait \
   --registry-config "$ANONYMOUS_REGISTRY_CONFIG"
 
-if [ "$PROFILE" = mac ]; then
-  echo ""
-  echo ">>> Mac profile complete: management kind cluster and Flux Operator are ready"
-  echo ">>> No GitOps sync or AWS resources were provisioned"
-  exit 0
-fi
-
 # ── Step 3: Create GitHub PAT credentials secret ─────────────────────────────
 # Basic-auth secret consumed by Flux's source-controller to clone the repo.
-echo ">>> Creating GitHub PAT credentials secret in flux-system..."
-kubectl create secret generic flux-github-pat \
-  --namespace flux-system \
-  --from-literal=username="${GITHUB_USER}" \
-  --from-literal=password="${GITHUB_TOKEN}"
+if [ "$PROFILE" = aws ]; then
+  echo ">>> Creating GitHub PAT credentials secret in flux-system..."
+  kubectl create secret generic flux-github-pat \
+    --namespace flux-system \
+    --from-literal=username="${GITHUB_USER}" \
+    --from-literal=password="${GITHUB_TOKEN}"
 
 # ── Step 3b: Create SOPS age decryption key secret ────────────────────────────
 # Flux's kustomize-controller uses this key to decrypt *.sops.yaml manifests
@@ -168,25 +162,33 @@ kubectl create secret generic sops-age \
   --namespace flux-system \
   --from-file="keys.${AGE_PUBKEY}.agekey=${AGE_KEY_FILE}" \
   --dry-run=client -o yaml | kubectl apply -f -
+fi
 
-# ── Step 4: Install the FluxInstance via Helm to start GitOps reconciliation ──
+# ── Step 4: Install the FluxInstance via Helm ────────────────────────────────
 echo ">>> Installing FluxInstance via Helm..."
+FLUX_INSTANCE_ARGS=(
+  --set instance.cluster.type=kubernetes
+  --set instance.cluster.size=small
+  --set instance.cluster.multitenant=false
+  --set instance.cluster.networkPolicy=true
+  --set instance.cluster.domain=cluster.local
+  --registry-config "$ANONYMOUS_REGISTRY_CONFIG"
+)
+if [ "$PROFILE" = aws ]; then
+  FLUX_INSTANCE_ARGS+=(
+    --set instance.sync.kind=GitRepository
+    --set instance.sync.url="${GIT_REPO_URL}"
+    --set instance.sync.ref=refs/heads/main
+    --set instance.sync.path=capi-mgmt
+    --set instance.sync.pullSecret=flux-github-pat
+  )
+fi
 helm upgrade --install flux \
   oci://ghcr.io/controlplaneio-fluxcd/charts/flux-instance \
   --namespace flux-system \
   --wait \
   --timeout 10m \
-  --set instance.cluster.type=kubernetes \
-  --set instance.cluster.size=small \
-  --set instance.cluster.multitenant=false \
-  --set instance.cluster.networkPolicy=true \
-  --set instance.cluster.domain=cluster.local \
-  --set instance.sync.kind=GitRepository \
-  --set instance.sync.url="${GIT_REPO_URL}" \
-  --set instance.sync.ref=refs/heads/main \
-  --set instance.sync.path=capi-mgmt \
-  --set instance.sync.pullSecret=flux-github-pat \
-  --registry-config "$ANONYMOUS_REGISTRY_CONFIG"
+  "${FLUX_INSTANCE_ARGS[@]}"
 
 # ── Post-bootstrap health check ───────────────────────────────────────────────
 # Verify the Flux controllers are running before declaring success.
@@ -201,5 +203,10 @@ kubectl wait --namespace flux-system --for=condition=ready pod \
 # infrastructure, capi-providers, addons, and clusters Kustomizations with
 # the correct dependsOn ordering. No further imperative steps are required.
 echo ""
-echo ">>> Bootstrap complete! Flux is now reconciling from ${GIT_REPO_URL}"
-echo ">>> Watch progress with: flux get kustomizations --watch"
+if [ "$PROFILE" = aws ]; then
+  echo ">>> Bootstrap complete! Flux is now reconciling from ${GIT_REPO_URL}"
+  echo ">>> Watch progress with: flux get kustomizations --watch"
+else
+  echo ">>> Mac profile complete: management kind cluster, Flux Operator, and FluxInstance are ready"
+  echo ">>> No GitOps sync or AWS resources were provisioned"
+fi
