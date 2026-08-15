@@ -75,11 +75,17 @@ preflight_checks() {
   GITHUB_REPO="${GITHUB_REPO%/}"
   GITHUB_REPO="${GITHUB_REPO%.git}"
 
+  # Use the same optional authentication header for every GitHub API request.
+  local github_api_response github_api_status github_api_body github_branch_status github_branch_path
+  local -a GITHUB_AUTH=()
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    GITHUB_AUTH=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+  fi
+
   # A public repository is visible without credentials. GitHub returns 404 for
-  # a private repository when unauthenticated, so verify the PAT against the
-  # repo before creating the management cluster when authentication is needed.
-  local github_api_response github_api_status github_api_body github_auth_status github_branch_status github_branch_path
+  # a private repository when the token is missing or cannot access it.
   github_api_response="$(curl -sS -H 'Accept: application/vnd.github+json' \
+    "${GITHUB_AUTH[@]}" \
     -w $'\n%{http_code}' "https://api.github.com/repos/${GITHUB_REPO}" || true)"
   github_api_status="${github_api_response##*$'\n'}"
   github_api_body="${github_api_response%$'\n'*}"
@@ -92,7 +98,11 @@ preflight_checks() {
       fi
       ;;
     404)
-      GIT_REPO_PRIVATE=true
+      if [ -z "${GITHUB_TOKEN:-}" ]; then
+        : "${GITHUB_TOKEN:?GITHUB_TOKEN must be set for the private GitHub repository (a PAT with read access)}"
+      fi
+      echo "ERROR: GITHUB_TOKEN cannot access GitHub repository '${GIT_REPO_URL}' (HTTP 404)" >&2
+      exit 1
       ;;
     *)
       echo "ERROR: could not inspect GitHub repository '${GIT_REPO_URL}' (HTTP ${github_api_status})" >&2
@@ -101,31 +111,15 @@ preflight_checks() {
   esac
 
   if [ "$GIT_REPO_PRIVATE" = true ]; then
-    : "${GITHUB_TOKEN:?GITHUB_TOKEN must be set for the private GitHub repository (a PAT with read access)}"
-    github_auth_status="$(curl -sS -o /dev/null -w '%{http_code}' \
-      -H 'Accept: application/vnd.github+json' \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-      "https://api.github.com/repos/${GITHUB_REPO}" || true)"
-    if [ "$github_auth_status" != 200 ]; then
-      echo "ERROR: GITHUB_TOKEN cannot access GitHub repository '${GIT_REPO_URL}' (HTTP ${github_auth_status})" >&2
-      exit 1
-    fi
-
     # Basic-auth secret consumed by Flux's source-controller.
     GITHUB_USER="${GITHUB_USER:-git}"
   fi
 
   github_branch_path="${GIT_BRANCH//\//%2F}"
-  if [ "$GIT_REPO_PRIVATE" = true ]; then
-    github_branch_status="$(curl -sS -o /dev/null -w '%{http_code}' \
-      -H 'Accept: application/vnd.github+json' \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-      "https://api.github.com/repos/${GITHUB_REPO}/branches/${github_branch_path}" || true)"
-  else
-    github_branch_status="$(curl -sS -o /dev/null -w '%{http_code}' \
-      -H 'Accept: application/vnd.github+json' \
-      "https://api.github.com/repos/${GITHUB_REPO}/branches/${github_branch_path}" || true)"
-  fi
+  github_branch_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+    -H 'Accept: application/vnd.github+json' \
+    "${GITHUB_AUTH[@]}" \
+    "https://api.github.com/repos/${GITHUB_REPO}/branches/${github_branch_path}" || true)"
   if [ "$github_branch_status" != 200 ]; then
     echo "ERROR: GitHub branch '${GIT_BRANCH}' was not found in repository '${GIT_REPO_URL}' (HTTP ${github_branch_status})" >&2
     exit 1
