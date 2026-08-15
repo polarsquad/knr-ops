@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Empty placeholder for local-host profile GitOps sync.
+# This directory will be used by the Flux sync when running on docker/podman
+# without provisioning any resources.
+resources: []
