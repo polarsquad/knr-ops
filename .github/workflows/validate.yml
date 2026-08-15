@@ -22,7 +22,7 @@ jobs:
       - name: Build every overlay
         run: |
           fail=0
-          for dir in $(find mgmt -name kustomization.yaml -exec dirname {} \; | sort -u); do
+          for dir in $(find mgmt workload -name kustomization.yaml -exec dirname {} \; | sort -u); do
             echo "==> kustomize build $dir"
             if ! kustomize build "$dir" >/dev/null; then
               echo "    FAILED: $dir" >&2
@@ -41,7 +41,7 @@ jobs:
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
         with:
-          file_or_dir: mgmt
+          file_or_dir: mgmt workload
           config_data: |
             extends: default
             ignore: |
