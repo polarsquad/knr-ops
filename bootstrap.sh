@@ -53,21 +53,24 @@ preflight_checks() {
       echo "       and add its PUBLIC key to .sops.yaml. See docs/secrets.md." >&2
       exit 1
     fi
-    AGE_PUBKEY="${AGE_PUBLIC_KEY:-$(grep '^# public key:' "${AGE_KEY_FILE}" 2>/dev/null | sed 's/^# public key: //')}"
+    # Validate age key file format first (before attempting to extract the public key).
+    # This avoids silent grep failure if the file is malformed.
+    AGE_CONTENT=$(cat "${AGE_KEY_FILE}")
+    missing_fields=""
+    echo "$AGE_CONTENT" | grep -q '^# created:' 2>/dev/null || missing_fields="${missing_fields}# created: header, "
+    echo "$AGE_CONTENT" | grep -q '^# public key:' 2>/dev/null || missing_fields="${missing_fields}# public key: comment, "
+    echo "$AGE_CONTENT" | grep -q '^AGE-SECRET-KEY-' 2>/dev/null || missing_fields="${missing_fields}AGE-SECRET-KEY- line, "
+    
+    if [ -n "$missing_fields" ]; then
+      echo "ERROR: '${AGE_KEY_FILE}' is not a valid age key file." >&2
+      echo "       Missing: ${missing_fields%, }" >&2
+      exit 1
+    fi
+    # Now safely extract the public key (validation already passed).
+    AGE_PUBKEY="${AGE_PUBLIC_KEY:-$(echo "$AGE_CONTENT" | grep '^# public key:' | sed 's/^# public key: //')}"
     if [ -z "$AGE_PUBKEY" ]; then
       echo "ERROR: Cannot determine age public key from '${AGE_KEY_FILE}' or from AGE_PUBLIC_KEY env var." >&2
       echo "       Set AGE_PUBLIC_KEY in .env, or regenerate the key with: mise run sops-keygen" >&2
-      exit 1
-    fi
-    AGE_CONTENT=$(cat "${AGE_KEY_FILE}")
-    if ! echo "$AGE_CONTENT" | grep -q '^# created:' 2>/dev/null; then
-      echo "ERROR: '${AGE_KEY_FILE}' does not appear to be a valid age key file." >&2
-      echo "       Expected a file with '# created:' comment header" >&2
-      exit 1
-    fi
-    if ! echo "$AGE_CONTENT" | grep -q '^AGE-SECRET-KEY-' 2>/dev/null; then
-      echo "ERROR: '${AGE_KEY_FILE}' does not appear to contain an age private key." >&2
-      echo "       Expected a line starting with 'AGE-SECRET-KEY-'" >&2
       exit 1
     fi
   fi
