@@ -76,16 +76,21 @@ This is the only imperative step. It:
 2. Installs the Flux Operator (Helm).
 3. Creates the `flux-github-pat` secret (for Git access) and the `sops-age`
    secret (the age private key Flux uses to decrypt SOPS-encrypted secrets).
-4. Installs a `FluxInstance` that syncs `mgmt/aws/` and hands off to GitOps.
+4. Installs a `FluxInstance` that syncs the selected profile path and hands off
+    to GitOps. The AWS profile syncs `mgmt/aws/`; the local-host profile syncs
+    the public repository's `mgmt/docker/` path.
 
 Everything downstream — providers, EKS clusters, workload Flux instances, the
 ACK operator, IAM role, pod identity bindings, and S3 buckets — reconciles
 from Git with no further manual steps.
 
-The local-host profile performs the cluster, Flux Operator, and FluxInstance steps in
-the `mgmt` management cluster, but does not create GitHub or SOPS secrets,
-configure Git sync, or start GitOps reconciliation. The AWS profile adds the
-GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/aws/`.
+Both profiles read `GIT_REPO_URL` and `GIT_BRANCH` from `.env` when run through
+mise. They default to `https://github.com/polarsquad/knr-ops` and `main` when
+those values are not overridden. Bootstrap checks the repository visibility via
+the GitHub API before creating the management cluster. For a private repository
+it requires `GITHUB_TOKEN`, verifies that the token can access the repository,
+and creates the `flux-github-pat` secret used by Flux. Public repositories do
+not need GitHub credentials. AWS additionally requires the SOPS credentials.
 
 Watch reconciliation:
 

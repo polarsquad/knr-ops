@@ -70,9 +70,9 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 
 The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
-The `local-host` profile is still work in progress. It creates the management kind
-cluster, installs the Flux Operator and FluxInstance, but does not configure
-GitOps sync or provision AWS resources:
+The `local-host` profile creates the management kind cluster, installs the Flux
+Operator and FluxInstance, and syncs the public repository's `mgmt/docker/`
+path. It does not provision AWS resources:
 
 ```sh
 mise -E local-host install
@@ -80,9 +80,9 @@ mise -E local-host run bootstrap
 mise -E local-host run teardown
 ```
 
-The Flux charts are pulled anonymously. The AWS profile requires a
-GitHub PAT so Flux can clone this repository; the local-host profile does not require
-GitHub or AWS credentials.
+The Flux charts are pulled anonymously. Bootstrap checks the GitHub repository's
+visibility before creating the cluster and requires a GitHub PAT only for a
+private repository. Neither profile requires AWS credentials for the Git source.
 
 The local-host teardown deletes only the `mgmt` kind cluster. The default
 teardown path suspends Flux and removes the AWS-managed infrastructure.
