@@ -86,11 +86,12 @@ from Git with no further manual steps.
 
 Both profiles read `GIT_REPO_URL` and `GIT_BRANCH` from `.env` when run through
 mise. They default to `https://github.com/polarsquad/knr-ops` and `main` when
-those values are not overridden. Bootstrap checks the repository visibility via
-the GitHub API before creating the management cluster. For a private repository
-it requires `GITHUB_TOKEN`, verifies that the token can access the repository,
-and creates the `flux-github-pat` secret used by Flux. Public repositories do
-not need GitHub credentials. AWS additionally requires the SOPS credentials.
+those values are not overridden. Bootstrap checks the repository visibility and
+configured branch via the GitHub API before creating the management cluster.
+For a private repository it requires `GITHUB_TOKEN`, verifies that the token
+can access the repository and branch, and creates the `flux-github-pat` secret
+used by Flux. Public repositories do not need GitHub credentials. AWS
+additionally requires the SOPS credentials.
 
 Watch reconciliation:
 

@@ -81,8 +81,9 @@ mise -E local-host run teardown
 ```
 
 The Flux charts are pulled anonymously. Bootstrap checks the GitHub repository's
-visibility before creating the cluster and requires a GitHub PAT only for a
-private repository. Neither profile requires AWS credentials for the Git source.
+visibility and configured branch before creating the cluster, and requires a
+GitHub PAT only for a private repository. Neither profile requires AWS
+credentials for the Git source.
 
 The local-host teardown deletes only the `mgmt` kind cluster. The default
 teardown path suspends Flux and removes the AWS-managed infrastructure.

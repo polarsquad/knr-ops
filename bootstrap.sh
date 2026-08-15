@@ -16,6 +16,11 @@ preflight_checks() {
       ;;
   esac
 
+  if [ -z "$GIT_BRANCH" ]; then
+    echo "ERROR: GIT_BRANCH must not be empty" >&2
+    exit 1
+  fi
+
   for cmd in curl kind helm kubectl; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found in PATH"; exit 1; }
   done
@@ -73,7 +78,7 @@ preflight_checks() {
   # A public repository is visible without credentials. GitHub returns 404 for
   # a private repository when unauthenticated, so verify the PAT against the
   # repo before creating the management cluster when authentication is needed.
-  local github_api_response github_api_status github_api_body github_auth_status
+  local github_api_response github_api_status github_api_body github_auth_status github_branch_status github_branch_path
   github_api_response="$(curl -sS -H 'Accept: application/vnd.github+json' \
     -w $'\n%{http_code}' "https://api.github.com/repos/${GITHUB_REPO}" || true)"
   github_api_status="${github_api_response##*$'\n'}"
@@ -108,6 +113,22 @@ preflight_checks() {
 
     # Basic-auth secret consumed by Flux's source-controller.
     GITHUB_USER="${GITHUB_USER:-git}"
+  fi
+
+  github_branch_path="${GIT_BRANCH//\//%2F}"
+  if [ "$GIT_REPO_PRIVATE" = true ]; then
+    github_branch_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+      -H 'Accept: application/vnd.github+json' \
+      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+      "https://api.github.com/repos/${GITHUB_REPO}/branches/${github_branch_path}" || true)"
+  else
+    github_branch_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+      -H 'Accept: application/vnd.github+json' \
+      "https://api.github.com/repos/${GITHUB_REPO}/branches/${github_branch_path}" || true)"
+  fi
+  if [ "$github_branch_status" != 200 ]; then
+    echo "ERROR: GitHub branch '${GIT_BRANCH}' was not found in repository '${GIT_REPO_URL}' (HTTP ${github_branch_status})" >&2
+    exit 1
   fi
 
   if [ "$PROFILE" = aws ]; then
