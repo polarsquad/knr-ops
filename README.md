@@ -70,13 +70,15 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 
 The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
-The `local-host` profile is still work in progress. It creates the management kind
-cluster, installs the Flux Operator and FluxInstance, but does not configure
-GitOps sync or provision AWS resources:
+The `local-host` profile is still work in progress. It creates the management
+kind cluster, a local OCI registry, and the Flux Operator and FluxInstance. It
+also publishes the `mgmt/local-host/` folder as the `knr-ops:latest` OCI artifact,
+but does not configure GitOps sync or provision AWS resources:
 
 ```sh
 mise -E local-host install
 mise -E local-host run bootstrap
+mise -E local-host run oci-push  # republish mgmt/local-host after local changes
 mise -E local-host run teardown
 ```
 
@@ -84,8 +86,9 @@ The Flux charts are pulled anonymously. The AWS profile requires a
 GitHub PAT so Flux can clone this repository; the local-host profile does not require
 GitHub or AWS credentials.
 
-The local-host teardown deletes only the `mgmt` kind cluster. The default
-teardown path suspends Flux and removes the AWS-managed infrastructure.
+The local-host teardown deletes the `mgmt` kind cluster and local registry
+container. The default teardown path suspends Flux and removes the AWS-managed
+infrastructure.
 
 ## Documentation
 
@@ -115,6 +118,7 @@ teardown path suspends Flux and removes the AWS-managed infrastructure.
 │   │                              (HelmChartProxy + ClusterResourceSets)
 │   └── clusters/                  EKS cluster defs (eu-north-1, eu-west-1;
 │                                  ARM + GPU MachinePools)
+├── mgmt/local-host/               Source published in the local-host OCI artifact
 └── workload/                          Synced by each WORKLOAD cluster's Flux
     ├── base/                      ACK S3/RDS/IAM controllers, Bucket CRs,
     │                              DBInstance CRs, reader Role CRs

@@ -67,7 +67,8 @@ AWS credentials, and `AWS_REGION` are only needed with the AWS profile.
 ## Bootstrap
 
 ```sh
-mise run bootstrap   # or: ./bootstrap.sh
+mise run bootstrap                 # AWS profile
+mise -E local-host run bootstrap   # local-host profile
 ```
 
 > Before the first bootstrap, generate an age key for SOPS (see
@@ -89,7 +90,8 @@ The local-host profile performs the cluster, Flux Operator, and FluxInstance ste
 the `mgmt` management cluster, but does not create GitHub or SOPS secrets,
 configure Git sync, or start GitOps reconciliation. Instead, it bootstraps a
 local Docker Registry container (`registry:2`) running on the host machine
-(accessible at `localhost:5001` by default) for managing OCI artifacts.
+(accessible at `localhost:5001` by default) and publishes the `mgmt/local-host/`
+folder as the initial `knr-ops:latest` OCI artifact.
 
 **OCI Registry (local-host profile only):**
 - Provides a local container registry for development workflows
@@ -100,17 +102,23 @@ local Docker Registry container (`registry:2`) running on the host machine
 
 **Workflow:**
 ```bash
-# 1. Build OCI artifact from local checkout
-docker build -t localhost:5001/myapp:v1.0 .
+# Republish the mgmt/local-host/ folder after making local changes
+mise -E local-host run oci-push
 
-# 2. Push to local registry
-docker push localhost:5001/myapp:v1.0
+# Optional overrides
+OCI_REPOSITORY=my-config OCI_TAG=v1 \
+  mise -E local-host run oci-push
 
-# 3. Configure Flux to pull from registry via mgmt/local-host kustomization
+# Configure Flux to pull from the artifact's mgmt/local-host kustomization.
 # bootstrap.sh configures kind's containerd to mirror localhost:5001 to the
 # registry's in-cluster endpoint, knr-registry:5000.
 # Flux syncs and deploys from the local registry into the cluster
 ```
+
+The artifact contains only the `mgmt/local-host/` folder, preserving that
+directory path when the artifact is pulled. Keeping the source scope this
+narrow also prevents local credentials and age private keys elsewhere in the
+repository from being packaged.
 
 The AWS profile adds the GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/aws/`.
 

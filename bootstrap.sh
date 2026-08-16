@@ -21,6 +21,11 @@ preflight_checks() {
     command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found in PATH"; exit 1; }
   done
 
+  if [ "$PROFILE" = local-host ]; then
+    command -v mise >/dev/null 2>&1 \
+      || { echo "ERROR: mise not found in PATH (required to publish the initial OCI artifact)"; exit 1; }
+  fi
+
   if [ "$PROFILE" = aws ]; then
     : "${GITHUB_TOKEN:?GITHUB_TOKEN must be set (a PAT with read access to the repo)}"
     : "${GIT_REPO_URL:?GIT_REPO_URL must be set}"
@@ -160,20 +165,32 @@ if [ "$PROFILE" = local-host ]; then
   # Check if registry already exists
   if ! $CONTAINER_ENGINE ps -a --filter "name=^${REGISTRY_NAME}$" | grep -q "${REGISTRY_NAME}"; then
     # Create registry container
+    echo "    Creating registry container '${REGISTRY_NAME}'..."
     $CONTAINER_ENGINE run -d \
       --name "$REGISTRY_NAME" \
       --network kind \
       -p "127.0.0.1:${REGISTRY_PORT}:5000" \
-      registry:2
-    echo "    Registry started: localhost:${REGISTRY_PORT}"
+      registry:2 >/dev/null
+    echo "    Registry created and running: localhost:${REGISTRY_PORT}"
   else
     # Check if registry is running, restart if needed
     if ! $CONTAINER_ENGINE ps --filter "name=^${REGISTRY_NAME}$" | grep -q "${REGISTRY_NAME}"; then
       echo "    Restarting stopped registry..."
-      $CONTAINER_ENGINE start "$REGISTRY_NAME"
+      $CONTAINER_ENGINE start "$REGISTRY_NAME" >/dev/null
+      echo "    Registry restarted: localhost:${REGISTRY_PORT}"
     else
       echo "    Registry already running: localhost:${REGISTRY_PORT}"
     fi
+  fi
+
+  echo ">>> Waiting for local registry API at localhost:${REGISTRY_PORT}..."
+  if ! curl --fail --silent --show-error \
+    --retry 30 \
+    --retry-connrefused \
+    --retry-delay 1 \
+    "http://localhost:${REGISTRY_PORT}/v2/" >/dev/null; then
+    echo "ERROR: local registry did not become ready at localhost:${REGISTRY_PORT}" >&2
+    exit 1
   fi
 
   # Configure kind nodes to access the registry via the hostname
@@ -181,6 +198,10 @@ if [ "$PROFILE" = local-host ]; then
   kubectl create configmap local-registry-config \
     --from-literal=registry-url="${REGISTRY_NAME}:5000" \
     --namespace kube-system
+
+  echo ">>> Publishing initial OCI artifact from the local Git checkout..."
+  mise -E local-host run oci-push
+  echo ">>> Initial OCI artifact is available at oci://localhost:${REGISTRY_PORT}/${OCI_REPOSITORY:-knr-ops}:${OCI_TAG:-latest}"
 fi
 
 # ── Step 2: Install the Flux Operator ────────────────────────────────────────
@@ -265,5 +286,6 @@ if [ "$PROFILE" = aws ]; then
   echo ">>> Watch progress with: flux get kustomizations --watch"
 else
   echo ">>> Local-host profile complete: management kind cluster, Flux Operator, and FluxInstance are ready"
+  echo ">>> Local registry: localhost:${REGISTRY_PORT} (cluster endpoint: ${REGISTRY_NAME}:5000)"
   echo ">>> No GitOps sync or AWS resources were provisioned"
 fi

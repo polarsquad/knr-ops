@@ -1,2 +1,50 @@
 [env]
 KNR_OPS_PROFILE = "local-host"
+
+[tasks.oci-push]
+description = "Package the local Git checkout as an OCI artifact and push it to the local registry"
+run = '''
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) \
+  || { echo "ERROR: not inside a Git repository" >&2; exit 1; }
+cd "$REPO_ROOT"
+
+REGISTRY_PORT="${REGISTRY_PORT:-5001}"
+OCI_REPOSITORY="${OCI_REPOSITORY:-knr-ops}"
+OCI_TAG="${OCI_TAG:-latest}"
+OCI_URL="oci://localhost:${REGISTRY_PORT}/${OCI_REPOSITORY}:${OCI_TAG}"
+OCI_SOURCE_PATH="mgmt/local-host"
+
+if [ ! -d "$OCI_SOURCE_PATH" ]; then
+  echo "ERROR: OCI source directory does not exist: $OCI_SOURCE_PATH" >&2
+  exit 1
+fi
+
+if ! curl --fail --silent --show-error "http://localhost:${REGISTRY_PORT}/v2/" >/dev/null; then
+  echo "ERROR: local registry is unavailable at localhost:${REGISTRY_PORT}" >&2
+  echo "       Start it with: mise -E local-host run bootstrap" >&2
+  exit 1
+fi
+
+GIT_SHA=$(git rev-parse HEAD)
+GIT_REF=$(git branch --show-current)
+GIT_REF="${GIT_REF:-detached}"
+SOURCE_URL=$(git config --get remote.origin.url || true)
+SOURCE_URL="${SOURCE_URL:-file://${REPO_ROOT}}"
+
+ARTIFACT_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/knr-ops-oci.XXXXXX")
+cleanup_artifact_root() {
+  rm -rf "$ARTIFACT_ROOT"
+}
+trap cleanup_artifact_root EXIT
+mkdir -p "$ARTIFACT_ROOT/mgmt"
+cp -R "$OCI_SOURCE_PATH" "$ARTIFACT_ROOT/mgmt/local-host"
+
+echo "==> Packaging ${OCI_SOURCE_PATH} as mgmt/local-host"
+echo "==> Pushing ${OCI_URL}"
+flux push artifact "$OCI_URL" \
+  --path="$ARTIFACT_ROOT" \
+  --source="$SOURCE_URL" \
+  --revision="${GIT_REF}@sha1:${GIT_SHA}" \
+  --insecure-registry \
+  --reproducible
+'''
