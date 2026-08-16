@@ -73,7 +73,8 @@ through `mise.aws.toml`; use the `aws` profile when those tools are needed.
 The `local-host` profile is still work in progress. It creates the management
 kind cluster, a local OCI registry, and the Flux Operator and FluxInstance. It
 also publishes the `mgmt/local-host/` folder as the `knr-ops:latest` OCI artifact,
-but does not configure GitOps sync or provision AWS resources:
+then configures Flux to reconcile from that artifact. It does not provision AWS
+resources:
 
 ```sh
 mise -E local-host install

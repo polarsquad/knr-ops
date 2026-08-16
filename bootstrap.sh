@@ -260,6 +260,14 @@ if [ "$PROFILE" = aws ]; then
     --set instance.sync.path=mgmt/aws
     --set instance.sync.pullSecret=flux-github-pat
   )
+else
+  FLUX_INSTANCE_ARGS+=(
+    --set instance.sync.kind=OCIRepository
+    --set instance.sync.url="oci://${REGISTRY_NAME}:5000/${OCI_REPOSITORY:-knr-ops}"
+    --set instance.sync.ref="${OCI_TAG:-latest}"
+    --set instance.sync.path=mgmt/local-host
+    --set-json 'instance.kustomize.patches=[{"patch":"- op: add\n  path: /spec/insecure\n  value: true","target":{"kind":"OCIRepository"}}]'
+  )
 fi
 helm upgrade --install flux \
   oci://ghcr.io/controlplaneio-fluxcd/charts/flux-instance \
@@ -285,7 +293,9 @@ if [ "$PROFILE" = aws ]; then
   echo ">>> Bootstrap complete! Flux is now reconciling from ${GIT_REPO_URL}"
   echo ">>> Watch progress with: flux get kustomizations --watch"
 else
-  echo ">>> Local-host profile complete: management kind cluster, Flux Operator, and FluxInstance are ready"
+  echo ">>> Local-host profile complete: Flux is reconciling from the local OCI artifact"
   echo ">>> Local registry: localhost:${REGISTRY_PORT} (cluster endpoint: ${REGISTRY_NAME}:5000)"
-  echo ">>> No GitOps sync or AWS resources were provisioned"
+  echo ">>> OCI source: oci://${REGISTRY_NAME}:5000/${OCI_REPOSITORY:-knr-ops}:${OCI_TAG:-latest} (path: mgmt/local-host)"
+  echo ">>> Watch progress with: flux get sources oci --watch"
+  echo ">>> No AWS resources were provisioned"
 fi

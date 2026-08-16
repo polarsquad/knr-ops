@@ -86,17 +86,17 @@ Everything downstream — providers, EKS clusters, workload Flux instances, the
 ACK operator, IAM role, pod identity bindings, and S3 buckets — reconciles
 from Git with no further manual steps.
 
-The local-host profile performs the cluster, Flux Operator, and FluxInstance steps in
-the `mgmt` management cluster, but does not create GitHub or SOPS secrets,
-configure Git sync, or start GitOps reconciliation. Instead, it bootstraps a
-local Docker Registry container (`registry:2`) running on the host machine
-(accessible at `localhost:5001` by default) and publishes the `mgmt/local-host/`
-folder as the initial `knr-ops:latest` OCI artifact.
+The local-host profile performs the cluster, Flux Operator, and FluxInstance
+steps in the `mgmt` management cluster, but does not create GitHub or SOPS
+secrets. Instead, it bootstraps a local Docker Registry container (`registry:2`)
+running on the host machine (accessible at `localhost:5001` by default),
+publishes the `mgmt/local-host/` folder as the initial `knr-ops:latest` OCI
+artifact, and configures Flux to reconcile that path from the artifact.
 
 **OCI Registry (local-host profile only):**
 - Provides a local container registry for development workflows
 - Enables developers to build and push OCI artifacts from git checkouts
-- Flux can sync and deploy OCI artifacts from the registry without external dependencies
+- Flux syncs and deploys the OCI artifact without external dependencies
 - Configurable via `REGISTRY_PORT` env var (defaults to 5001)
 - Idempotent: restarts if stopped, no action needed if already running
 
@@ -109,10 +109,9 @@ mise -E local-host run oci-push
 OCI_REPOSITORY=my-config OCI_TAG=v1 \
   mise -E local-host run oci-push
 
-# Configure Flux to pull from the artifact's mgmt/local-host kustomization.
+# FluxInstance pulls and reconciles the artifact's mgmt/local-host kustomization.
 # bootstrap.sh configures kind's containerd to mirror localhost:5001 to the
 # registry's in-cluster endpoint, knr-registry:5000.
-# Flux syncs and deploys from the local registry into the cluster
 ```
 
 The artifact contains only the `mgmt/local-host/` folder, preserving that
