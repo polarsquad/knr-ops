@@ -49,6 +49,17 @@ if [ "$PROFILE" = local-host ]; then
   else
     echo ">>> kind management cluster 'mgmt' is not present"
   fi
+
+  # Clean up the local container registry used by local-host profile
+  command -v docker >/dev/null 2>&1 && CONTAINER_ENGINE=docker \
+    || { command -v podman >/dev/null 2>&1 && CONTAINER_ENGINE=podman; } \
+    || true
+  if [ -n "${CONTAINER_ENGINE:-}" ] && $CONTAINER_ENGINE ps -a --filter "name=^knr-registry$" | grep -q "knr-registry"; then
+    echo ">>> Removing local registry container 'knr-registry'..."
+    $CONTAINER_ENGINE rm -f knr-registry
+    echo "✓   registry container 'knr-registry' removed"
+  fi
+
   exit 0
 fi
 
