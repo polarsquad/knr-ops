@@ -16,11 +16,14 @@ You also need:
 
 - A running container engine for kind: Docker, or Podman 5.5+ (auto-detected
   by `bootstrap.sh`; set `CONTAINER_ENGINE=docker|podman` to override).
+  For local-host profile: the same engine is used to host the local container
+  registry for OCI artifacts.
+
+**AWS profile only:**
 - A GitHub personal access token (PAT) with read access to this repository
   (fine-grained with read-only Contents permission, or classic with `repo`
-  scope) for the AWS profile. The Flux Operator chart is pulled anonymously.
-- AWS credentials with permission to create EKS clusters, VPCs, and IAM roles
-  for the AWS profile.
+  scope). The Flux Operator chart is pulled anonymously.
+- AWS credentials with permission to create EKS clusters, VPCs, and IAM roles.
   For the ACK controllers the same principal additionally needs
   `iam:CreateRole`/`PutRolePolicy`/`GetRole`/`TagRole`,
   `iam:CreateUser`/`PutUserPolicy`/`GetUser`/`GetUserPolicy`/`TagUser`
@@ -84,8 +87,32 @@ from Git with no further manual steps.
 
 The local-host profile performs the cluster, Flux Operator, and FluxInstance steps in
 the `mgmt` management cluster, but does not create GitHub or SOPS secrets,
-configure Git sync, or start GitOps reconciliation. The AWS profile adds the
-GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/aws/`.
+configure Git sync, or start GitOps reconciliation. Instead, it bootstraps a
+local Docker Registry container (`registry:2`) running on the host machine
+(accessible at `localhost:5001` by default) for managing OCI artifacts.
+
+**OCI Registry (local-host profile only):**
+- Provides a local container registry for development workflows
+- Enables developers to build and push OCI artifacts from git checkouts
+- Flux can sync and deploy OCI artifacts from the registry without external dependencies
+- Configurable via `REGISTRY_PORT` env var (defaults to 5001)
+- Idempotent: restarts if stopped, no action needed if already running
+
+**Workflow:**
+```bash
+# 1. Build OCI artifact from local checkout
+docker build -t localhost:5001/myapp:v1.0 .
+
+# 2. Push to local registry
+docker push localhost:5001/myapp:v1.0
+
+# 3. Configure Flux to pull from registry via mgmt/local-host kustomization
+# bootstrap.sh configures kind's containerd to mirror localhost:5001 to the
+# registry's in-cluster endpoint, knr-registry:5000.
+# Flux syncs and deploys from the local registry into the cluster
+```
+
+The AWS profile adds the GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/aws/`.
 
 Watch reconciliation:
 

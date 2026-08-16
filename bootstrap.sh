@@ -5,6 +5,8 @@ set -euo pipefail
 
 PROFILE="${KNR_OPS_PROFILE:-${1:-aws}}"
 GIT_BRANCH="main"
+REGISTRY_NAME="knr-registry"
+REGISTRY_PORT="${REGISTRY_PORT:-5001}"
 
 preflight_checks() {
   case "$PROFILE" in
@@ -60,7 +62,7 @@ preflight_checks() {
     echo "$AGE_CONTENT" | grep -q '^# created:' 2>/dev/null || missing_fields="${missing_fields}# created: header, "
     echo "$AGE_CONTENT" | grep -q '^# public key:' 2>/dev/null || missing_fields="${missing_fields}# public key: comment, "
     echo "$AGE_CONTENT" | grep -q '^AGE-SECRET-KEY-' 2>/dev/null || missing_fields="${missing_fields}AGE-SECRET-KEY- line, "
-    
+
     if [ -n "$missing_fields" ]; then
       echo "ERROR: '${AGE_KEY_FILE}' is not a valid age key file." >&2
       echo "       Missing: ${missing_fields%, }" >&2
@@ -128,9 +130,17 @@ fi
 # socket path. This ensures all in-cluster components can access a Docker-compatible API
 # at /var/run/docker.sock, whether the backend is Docker or Podman (which exposes a
 # Docker-compatible socket). This is essential for building and loading container images.
+KIND_REGISTRY_PATCH=""
+if [ "$PROFILE" = local-host ]; then
+  KIND_REGISTRY_PATCH="containerdConfigPatches:
+  - |-
+    [plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors.\"localhost:${REGISTRY_PORT}\"]
+      endpoint = [\"http://${REGISTRY_NAME}:5000\"]"
+fi
 kind create cluster --name mgmt --config - <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+${KIND_REGISTRY_PATCH}
 nodes:
   - role: control-plane
     extraMounts:
@@ -142,6 +152,36 @@ echo ">>> Waiting for cluster node to be ready..."
 # Explicitly switch kubectl to use the kind cluster context
 kubectl config use-context kind-mgmt
 kubectl wait --for=condition=Ready node --all --timeout=120s
+
+# ── Step 1.5: Bootstrap local container registry (local-host profile only) ────
+if [ "$PROFILE" = local-host ]; then
+  echo ">>> Bootstrapping local container registry..."
+
+  # Check if registry already exists
+  if ! $CONTAINER_ENGINE ps -a --filter "name=^${REGISTRY_NAME}$" | grep -q "${REGISTRY_NAME}"; then
+    # Create registry container
+    $CONTAINER_ENGINE run -d \
+      --name "$REGISTRY_NAME" \
+      --network kind \
+      -p "127.0.0.1:${REGISTRY_PORT}:5000" \
+      registry:2
+    echo "    Registry started: localhost:${REGISTRY_PORT}"
+  else
+    # Check if registry is running, restart if needed
+    if ! $CONTAINER_ENGINE ps --filter "name=^${REGISTRY_NAME}$" | grep -q "${REGISTRY_NAME}"; then
+      echo "    Restarting stopped registry..."
+      $CONTAINER_ENGINE start "$REGISTRY_NAME"
+    else
+      echo "    Registry already running: localhost:${REGISTRY_PORT}"
+    fi
+  fi
+
+  # Configure kind nodes to access the registry via the hostname
+  # Add a configmap to tell the cluster about the local registry
+  kubectl create configmap local-registry-config \
+    --from-literal=registry-url="${REGISTRY_NAME}:5000" \
+    --namespace kube-system
+fi
 
 # ── Step 2: Install the Flux Operator ────────────────────────────────────────
 echo ">>> Installing Flux Operator..."

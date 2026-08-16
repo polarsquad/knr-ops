@@ -25,23 +25,81 @@
 set -euo pipefail
 
 PROFILE="${KNR_OPS_PROFILE:-${1:-aws}}"
-case "$PROFILE" in
-  local-host|aws) ;;
-  *)
-    echo "ERROR: unsupported profile '$PROFILE' (expected 'local-host' or 'aws')" >&2
-    exit 1
-    ;;
-esac
 
-if [ "$PROFILE" = local-host ] && [ "${AWS_ONLY:-0}" = "1" ]; then
-  echo "ERROR: AWS_ONLY=1 cannot be combined with the local-host profile" >&2
-  echo "       Use the AWS profile for AWS-only orphan cleanup" >&2
-  exit 1
-fi
+preflight_checks() {
+  case "$PROFILE" in
+    local-host|aws) ;;
+    *)
+      echo "ERROR: unsupported profile '$PROFILE' (expected 'local-host' or 'aws')" >&2
+      exit 1
+      ;;
+  esac
+
+  if [ "$PROFILE" = local-host ]; then
+    if [ "${AWS_ONLY:-0}" = "1" ]; then
+      echo "ERROR: AWS_ONLY=1 cannot be combined with the local-host profile" >&2
+      echo "       Use the AWS profile for AWS-only orphan cleanup" >&2
+      exit 1
+    fi
+
+    command -v kind >/dev/null 2>&1 \
+      || { echo "ERROR: kind not found in PATH" >&2; exit 1; }
+
+    # Select the same running container engine used by bootstrap.sh. Registry
+    # cleanup is best-effort so an unavailable engine does not block teardown.
+    if [ -n "${CONTAINER_ENGINE:-}" ]; then
+      case "$CONTAINER_ENGINE" in
+        docker|podman) ;;
+        *)
+          echo "ERROR: Unsupported CONTAINER_ENGINE '${CONTAINER_ENGINE}' (expected 'docker' or 'podman')" >&2
+          exit 1
+          ;;
+      esac
+      if ! command -v "$CONTAINER_ENGINE" >/dev/null 2>&1 \
+        || ! "$CONTAINER_ENGINE" info >/dev/null 2>&1; then
+        echo ">>> WARNING: ${CONTAINER_ENGINE} is unavailable; registry cleanup will be skipped" >&2
+        CONTAINER_ENGINE=""
+      fi
+    elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+      if docker --version 2>/dev/null | grep -qi podman; then
+        CONTAINER_ENGINE=podman
+      else
+        CONTAINER_ENGINE=docker
+      fi
+    elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+      CONTAINER_ENGINE=podman
+    else
+      echo ">>> WARNING: No running container engine found; registry cleanup will be skipped" >&2
+      CONTAINER_ENGINE=""
+    fi
+    return
+  fi
+
+  if [ "${AWS_ONLY:-0}" = "1" ]; then
+    command -v aws >/dev/null 2>&1 \
+      || { echo "ERROR: aws CLI not found in PATH (required for AWS_ONLY mode)" >&2; exit 1; }
+    AWS_AVAILABLE=true
+    echo ">>> AWS_ONLY mode – k8s tools not required"
+    return
+  fi
+
+  for cmd in kind helm kubectl xargs; do
+    command -v "$cmd" >/dev/null 2>&1 \
+      || { echo "ERROR: $cmd not found in PATH" >&2; exit 1; }
+  done
+
+  AWS_AVAILABLE=false
+  if command -v aws >/dev/null 2>&1; then
+    AWS_AVAILABLE=true
+    echo ">>> aws CLI available"
+  else
+    echo "!   aws CLI not found – AWS orphan cleanup (step 4) will be skipped" >&2
+  fi
+}
+
+preflight_checks
 
 if [ "$PROFILE" = local-host ]; then
-  command -v kind >/dev/null 2>&1 \
-    || { echo "ERROR: kind not found in PATH" >&2; exit 1; }
   if kind get clusters 2>/dev/null | grep -q '^mgmt$'; then
     echo ">>> Deleting kind management cluster 'mgmt'..."
     kind delete cluster --name mgmt
@@ -49,6 +107,14 @@ if [ "$PROFILE" = local-host ]; then
   else
     echo ">>> kind management cluster 'mgmt' is not present"
   fi
+
+  # Clean up the local container registry used by local-host profile
+  if [ -n "${CONTAINER_ENGINE:-}" ] && $CONTAINER_ENGINE ps -a --filter "name=^knr-registry$" | grep -q "knr-registry"; then
+    echo ">>> Removing local registry container 'knr-registry'..."
+    $CONTAINER_ENGINE rm -f knr-registry
+    echo "✓   registry container 'knr-registry' removed"
+  fi
+
   exit 0
 fi
 
@@ -166,28 +232,6 @@ _get_rds_instance() {
     *)          return 1 ;;
   esac
 }
-
-# ── Prerequisites check ───────────────────────────────────────────────────────
-# Check for required tools (aws is optional – needed only for AWS cleanup step)
-if [ "${AWS_ONLY:-0}" = "1" ]; then
-  # AWS_ONLY mode: only aws CLI is needed
-  command -v aws >/dev/null 2>&1 \
-    || { echo "ERROR: aws CLI not found in PATH (required for AWS_ONLY mode)"; exit 1; }
-  AWS_AVAILABLE=true
-  info "AWS_ONLY mode – k8s tools not required"
-else
-  for cmd in kind helm kubectl; do
-    command -v "$cmd" >/dev/null 2>&1 \
-      || { echo "ERROR: $cmd not found in PATH"; exit 1; }
-  done
-  AWS_AVAILABLE=false
-  if command -v aws >/dev/null 2>&1; then
-    AWS_AVAILABLE=true
-    info "aws CLI available"
-  else
-    warn "aws CLI not found – AWS orphan cleanup (step 4) will be skipped"
-  fi
-fi
 
 # ── AWS orphan cleanup helpers ────────────────────────────────────────────────
 # All helpers gracefully skip if the resource is already gone and never abort
