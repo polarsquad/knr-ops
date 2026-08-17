@@ -91,7 +91,10 @@ steps in the `mgmt` management cluster, but does not create GitHub or SOPS
 secrets. Instead, it bootstraps a local Docker Registry container (`registry:2`)
 running on the host machine (accessible at `localhost:5001` by default),
 publishes the `mgmt/local-host/` folder as the initial `knr-ops:latest` OCI
-artifact, and configures Flux to reconcile that path from the artifact.
+artifact, and configures Flux to reconcile that path from the artifact. Flux
+then installs the CAPI core, kubeadm, and Docker infrastructure providers and
+creates `local-workload`, a one-control-plane/one-worker Kubernetes cluster in
+containers. CAPD is intended for local development and testing, not production.
 
 **OCI Registry (local-host profile only):**
 - Provides a local container registry for development workflows
@@ -127,6 +130,22 @@ Watch reconciliation:
 flux get kustomizations --watch
 ```
 
+For the local-host profile, export and verify the CAPD workload kubeconfig after
+`docker-workload-cluster` reports Ready:
+
+```sh
+mise -E local-host run kubeconfigs
+KUBECONFIG=local-workload.kubeconfig kubectl get nodes
+```
+
+The workload uses Kubernetes v1.35.0 and bootstraps Calico v3.32.1 as its CNI.
+The management cluster needs access to the container-engine socket, which
+`bootstrap.sh` mounts automatically.
+
+Local-host bootstrap streams the Flux Kustomization status in the same terminal
+and returns after `docker-workload-cluster` becomes Ready. The readiness wait
+defaults to 15 minutes and can be changed with `LOCAL_RECONCILE_TIMEOUT`.
+
 EKS clusters typically take 15–25 minutes to come up; node groups and the
 downstream app chain follow a few minutes after.
 
@@ -156,9 +175,10 @@ mise run teardown    # or: ./teardown.sh
 ```
 
 Tears down in reverse order: suspends Flux, deletes CAPI workload clusters (so
-CAPA deprovisions all AWS resources), removes providers, uninstalls Flux, and
-deletes the kind cluster. The `clusterawsadm` IAM stack is intentionally left
-in place.
+CAPA or CAPD deprovisions their infrastructure), removes providers, uninstalls
+Flux, and deletes the kind cluster. The local-host profile waits for CAPD to
+remove the workload containers before deleting `mgmt`. The `clusterawsadm` IAM
+stack is intentionally left in place.
 
 > Note: S3 buckets, RDS instances, and IAM reader roles created by ACK on the
 > workload clusters are deleted when their `Bucket`/`DBInstance`/`Role` CRs

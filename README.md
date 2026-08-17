@@ -72,16 +72,18 @@ mise run teardown           # full teardown (EKS, AWS resources, kind)
 
 The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
-The `local-host` profile is still work in progress. It creates the management
-kind cluster, a local OCI registry, and the Flux Operator and FluxInstance. It
-also publishes the `mgmt/local-host/` folder as the `knr-ops:latest` OCI artifact,
-then configures Flux to reconcile from that artifact. It does not provision AWS
+The `local-host` profile creates the management kind cluster, a local OCI
+registry, and the Flux Operator and FluxInstance. It publishes the
+`mgmt/local-host/` folder as the `knr-ops:latest` OCI artifact, then Flux installs
+CAPI with its Docker infrastructure provider (CAPD) and provisions a local
+one-control-plane/one-worker workload cluster. It does not provision AWS
 resources:
 
 ```sh
 mise -E local-host install
 mise -E local-host run bootstrap
 mise -E local-host run oci-push  # republish mgmt/local-host after local changes
+mise -E local-host run kubeconfigs
 mise -E local-host run teardown
 ```
 
@@ -89,9 +91,9 @@ The Flux charts are pulled anonymously. The AWS profile requires a
 GitHub PAT so Flux can clone this repository; the local-host profile does not require
 GitHub or AWS credentials.
 
-The local-host teardown deletes the `mgmt` kind cluster and local registry
-container. The default teardown path suspends Flux and removes the AWS-managed
-infrastructure.
+The local-host teardown deletes the CAPD workload cluster before deleting the
+`mgmt` kind cluster and local registry container. The default teardown path
+suspends Flux and removes the AWS-managed infrastructure.
 
 ## Documentation
 
@@ -121,7 +123,7 @@ infrastructure.
 │   │                              (HelmChartProxy + ClusterResourceSets)
 │   └── clusters/                  EKS cluster defs (eu-north-1, eu-west-1;
 │                                  ARM + GPU MachinePools)
-├── mgmt/local-host/               Source published in the local-host OCI artifact
+├── mgmt/local-host/               OCI-synced CAPI/CAPD local workload cluster
 └── workload/                          Synced by each WORKLOAD cluster's Flux
     ├── base/                      ACK S3/RDS/IAM controllers, Bucket CRs,
     │                              DBInstance CRs, reader Role CRs

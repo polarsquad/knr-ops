@@ -11,3 +11,6 @@
 # SOPS age PRIVATE key — the public key in .sops.yaml is safe to commit
 *.agekey
 age.agekey
+
+# Generated local Cluster API workload kubeconfig
+local-workload.kubeconfig

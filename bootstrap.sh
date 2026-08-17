@@ -7,6 +7,8 @@ PROFILE="${KNR_OPS_PROFILE:-${1:-aws}}"
 GIT_BRANCH="main"
 REGISTRY_NAME="knr-registry"
 REGISTRY_PORT="${REGISTRY_PORT:-5001}"
+REGISTRY_READY_RETRIES="${REGISTRY_READY_RETRIES:-120}"
+LOCAL_RECONCILE_TIMEOUT="${LOCAL_RECONCILE_TIMEOUT:-15m}"
 
 preflight_checks() {
   case "$PROFILE" in
@@ -185,7 +187,7 @@ if [ "$PROFILE" = local-host ]; then
 
   echo ">>> Waiting for local registry API at localhost:${REGISTRY_PORT}..."
   if ! curl --fail --silent --show-error \
-    --retry 30 \
+    --retry "$REGISTRY_READY_RETRIES" \
     --retry-connrefused \
     --retry-delay 1 \
     "http://localhost:${REGISTRY_PORT}/v2/" >/dev/null; then
@@ -282,6 +284,46 @@ echo ">>> Waiting for Flux controllers to be ready..."
 kubectl wait --namespace flux-system --for=condition=ready pod \
   --selector='app.kubernetes.io/part-of=flux' \
   --timeout=90s || true
+
+# ── Step 5: Watch local-host reconciliation ──────────────────────────────────
+# Stream the GitOps handoff in the bootstrap terminal for the local profile.
+# The final Kustomization is created by the OCI root, so wait for it to appear
+# before asking kubectl to wait for its Ready condition.
+if [ "$PROFILE" = local-host ]; then
+  echo ""
+  echo ">>> Step 5: Flux reconciliation progress"
+  echo ">>> Watching until the local workload cluster is ready..."
+  flux get kustomizations --watch &
+  flux_watch_pid=$!
+  cleanup_flux_watch() {
+    kill "$flux_watch_pid" >/dev/null 2>&1 || true
+    wait "$flux_watch_pid" >/dev/null 2>&1 || true
+  }
+  trap 'cleanup_flux_watch; cleanup_registry_config' EXIT
+
+  reconcile_discovery_attempts=0
+  until kubectl get kustomization docker-workload-cluster \
+      --namespace flux-system >/dev/null 2>&1; do
+    reconcile_discovery_attempts=$((reconcile_discovery_attempts + 1))
+    if [ "$reconcile_discovery_attempts" -ge 60 ]; then
+      echo "ERROR: docker-workload-cluster Kustomization was not created within 2 minutes" >&2
+      flux get kustomizations
+      exit 1
+    fi
+    sleep 2
+  done
+
+  if ! kubectl wait kustomization/docker-workload-cluster \
+      --namespace flux-system \
+      --for=condition=Ready \
+      --timeout="$LOCAL_RECONCILE_TIMEOUT"; then
+    echo "ERROR: local-host reconciliation did not complete within ${LOCAL_RECONCILE_TIMEOUT}" >&2
+    flux get kustomizations
+    exit 1
+  fi
+  cleanup_flux_watch
+  trap cleanup_registry_config EXIT
+fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 # Everything else is driven by GitOps. The FluxInstance above syncs the

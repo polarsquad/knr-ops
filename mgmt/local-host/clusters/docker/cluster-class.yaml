@@ -1,0 +1,120 @@
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: ClusterClass
+metadata:
+  name: docker-workload
+  namespace: default
+spec:
+  infrastructure:
+    templateRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+      kind: DevClusterTemplate
+      name: docker-workload
+  controlPlane:
+    templateRef:
+      apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+      kind: KubeadmControlPlaneTemplate
+      name: docker-workload-control-plane
+    machineInfrastructure:
+      templateRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: DevMachineTemplate
+        name: docker-workload-control-plane
+  workers:
+    machineDeployments:
+      - class: default-worker
+        bootstrap:
+          templateRef:
+            apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+            kind: KubeadmConfigTemplate
+            name: docker-workload-worker
+        infrastructure:
+          templateRef:
+            apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+            kind: DevMachineTemplate
+            name: docker-workload-worker
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: DevClusterTemplate
+metadata:
+  name: docker-workload
+  namespace: default
+spec:
+  template:
+    spec:
+      backend:
+        docker: {}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: KubeadmControlPlaneTemplate
+metadata:
+  name: docker-workload-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      kubeadmConfigSpec:
+        # Bootstrap networking from a version-pinned upstream manifest. This
+        # runs once, after kubeadm creates the workload API server.
+        postKubeadmCommands:
+          - kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml
+        clusterConfiguration:
+          apiServer:
+            certSANs:
+              - localhost
+              - 127.0.0.1
+              - 0.0.0.0
+              - host.docker.internal
+        initConfiguration:
+          nodeRegistration:
+            kubeletExtraArgs:
+              - name: eviction-hard
+                value: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+        joinConfiguration:
+          nodeRegistration:
+            kubeletExtraArgs:
+              - name: eviction-hard
+                value: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: DevMachineTemplate
+metadata:
+  name: docker-workload-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      backend:
+        docker:
+          customImage: kindest/node:v1.35.0
+          extraMounts:
+            - hostPath: /var/run/docker.sock
+              containerPath: /var/run/docker.sock
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: DevMachineTemplate
+metadata:
+  name: docker-workload-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      backend:
+        docker:
+          customImage: kindest/node:v1.35.0
+          extraMounts:
+            - hostPath: /var/run/docker.sock
+              containerPath: /var/run/docker.sock
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+kind: KubeadmConfigTemplate
+metadata:
+  name: docker-workload-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            - name: eviction-hard
+              value: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%

@@ -1,0 +1,13 @@
+# CAPD is a development/test provider. Its v1.14 APIs use the Dev* names.
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: InfrastructureProvider
+metadata:
+  name: docker
+  namespace: capd-system
+spec:
+  version: "v1.14.0"
+  deployment:
+    containers:
+      - name: manager
+        args:
+          "--feature-gates": "ClusterTopology=true"

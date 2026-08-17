@@ -20,7 +20,7 @@
 #
 # Usage:
 #   ./teardown.sh              # Full teardown (k8s + AWS)
-#   KNR_OPS_PROFILE=local-host ./teardown.sh  # Delete the management kind cluster
+#   KNR_OPS_PROFILE=local-host ./teardown.sh  # Delete CAPD workload + management cluster
 #   AWS_ONLY=1 ./teardown.sh   # AWS orphan cleanup only (skip k8s steps)
 set -euo pipefail
 
@@ -42,8 +42,10 @@ preflight_checks() {
       exit 1
     fi
 
-    command -v kind >/dev/null 2>&1 \
-      || { echo "ERROR: kind not found in PATH" >&2; exit 1; }
+    for cmd in kind kubectl; do
+      command -v "$cmd" >/dev/null 2>&1 \
+        || { echo "ERROR: $cmd not found in PATH" >&2; exit 1; }
+    done
 
     # Select the same running container engine used by bootstrap.sh. Registry
     # cleanup is best-effort so an unavailable engine does not block teardown.
@@ -101,6 +103,22 @@ preflight_checks
 
 if [ "$PROFILE" = local-host ]; then
   if kind get clusters 2>/dev/null | grep -q '^mgmt$'; then
+    kubectl config use-context kind-mgmt >/dev/null
+
+    # Prevent Flux from recreating the Cluster while CAPD removes its Docker
+    # machines, then wait before deleting the management cluster/controller.
+    kubectl patch kustomization docker-workload-cluster -n flux-system \
+      --type merge -p '{"spec":{"suspend":true}}' >/dev/null 2>&1 || true
+    if kubectl get cluster local-workload -n default >/dev/null 2>&1; then
+      echo ">>> Deleting CAPD workload cluster 'local-workload'..."
+      kubectl delete cluster local-workload -n default --wait=false
+      if ! kubectl wait --for=delete cluster/local-workload -n default --timeout=5m; then
+        echo "ERROR: CAPD workload cluster did not finish deleting; leaving mgmt intact" >&2
+        exit 1
+      fi
+      echo "✓   CAPD workload cluster 'local-workload' deleted"
+    fi
+
     echo ">>> Deleting kind management cluster 'mgmt'..."
     kind delete cluster --name mgmt
     echo "✓   kind cluster 'mgmt' deleted"
