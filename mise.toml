@@ -8,6 +8,15 @@ flux2 = "latest"
 sops = "latest"
 age = "latest"
 
+# Zarf CLI (airgap prototype). The mise github backend downloads the raw
+# release asset and keeps its original filename, so we pin the exact asset
+# and use `bin` to name the binary `zarf`. asset_pattern is Darwin/arm64
+# (this prototype targets the local arm64 host; adjust for other platforms).
+[tools."github:zarf-dev/zarf"]
+version = "v0.83.0"
+asset_pattern = "zarf_v0.83.0_Darwin_arm64"
+bin = "zarf"
+
 [settings]
 env_file = ".env"
 
