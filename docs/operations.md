@@ -159,7 +159,7 @@ kubectl get roles.iam.services.k8s.aws -n ack-system
 kubectl get podidentityassociations.eks.services.k8s.aws -n ack-system
 
 # Workload clusters — export kubeconfigs first:
-#   mise run kubeconfigs && export KUBECONFIG=~/.kube/knr-ops-workloads.yaml
+#   mise -E aws run kubeconfigs && export KUBECONFIG=~/.kube/knr-ops-workloads.yaml
 #   kubectl config use-context eu-north-1-workload   (or eu-west-1-workload)
 kubectl get kustomizations -n flux-system            # aws-operators, s3-buckets, rds-instances, iam-roles
 

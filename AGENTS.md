@@ -65,7 +65,7 @@ Each component pairs a plain kustomize root with a Flux `Kustomization`:
 mise install            # install pinned tools (kubectl, kind, flux, sops, age, ...)
 mise run validate       # build every kustomize overlay; mirrors CI
 mise run bootstrap      # one-time kind cluster + Flux handoff
-mise run kubeconfigs    # export workload-cluster kubeconfigs
+mise -E aws run kubeconfigs  # export AWS workload-cluster kubeconfigs
 mise run teardown       # full teardown (EKS, AWS resources, kind)
 ```
 
