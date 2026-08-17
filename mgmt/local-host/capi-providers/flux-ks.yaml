@@ -40,3 +40,25 @@ spec:
     - apiVersion: apiextensions.k8s.io/v1
       kind: CustomResourceDefinition
       name: devmachines.infrastructure.cluster.x-k8s.io
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: caaph-system
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 2m
+  timeout: 5m
+  prune: true
+  wait: false
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+  path: ./mgmt/local-host/capi-providers/caaph-system
+  dependsOn:
+    - name: capi-system
+  healthChecks:
+    - apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: helmchartproxies.addons.cluster.x-k8s.io

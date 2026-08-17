@@ -302,18 +302,18 @@ if [ "$PROFILE" = local-host ]; then
   trap 'cleanup_flux_watch; cleanup_registry_config' EXIT
 
   reconcile_discovery_attempts=0
-  until kubectl get kustomization docker-workload-cluster \
+  until kubectl get kustomization flux-apps \
       --namespace flux-system >/dev/null 2>&1; do
     reconcile_discovery_attempts=$((reconcile_discovery_attempts + 1))
     if [ "$reconcile_discovery_attempts" -ge 60 ]; then
-      echo "ERROR: docker-workload-cluster Kustomization was not created within 2 minutes" >&2
+      echo "ERROR: flux-apps Kustomization was not created within 2 minutes" >&2
       flux get kustomizations
       exit 1
     fi
     sleep 2
   done
 
-  if ! kubectl wait kustomization/docker-workload-cluster \
+  if ! kubectl wait kustomization/flux-apps \
       --namespace flux-system \
       --for=condition=Ready \
       --timeout="$LOCAL_RECONCILE_TIMEOUT"; then

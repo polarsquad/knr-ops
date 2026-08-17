@@ -53,10 +53,6 @@ spec:
   template:
     spec:
       kubeadmConfigSpec:
-        # Bootstrap networking from a version-pinned upstream manifest. This
-        # runs once, after kubeadm creates the workload API server.
-        postKubeadmCommands:
-          - kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml
         clusterConfiguration:
           apiServer:
             certSANs:

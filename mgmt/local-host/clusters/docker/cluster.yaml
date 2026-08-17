@@ -4,6 +4,7 @@ metadata:
   name: local-workload
   namespace: default
   labels:
+    fluxcd: enabled
     profile: local-host
 spec:
   clusterNetwork:

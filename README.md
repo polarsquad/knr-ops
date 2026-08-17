@@ -74,15 +74,15 @@ The shared toolchain is defined in `mise.toml`. AWS-specific tools are layered
 through `mise.aws.toml`; use the `aws` profile when those tools are needed.
 The `local-host` profile creates the management kind cluster, a local OCI
 registry, and the Flux Operator and FluxInstance. It publishes the
-`mgmt/local-host/` folder as the `knr-ops:latest` OCI artifact, then Flux installs
-CAPI with its Docker infrastructure provider (CAPD) and provisions a local
-one-control-plane/one-worker workload cluster. It does not provision AWS
-resources:
+`mgmt/local-host/` and `workload/local-host/` folders as the `knr-ops:latest`
+OCI artifact. Flux installs CAPI with its Docker infrastructure provider (CAPD),
+provisions a local one-control-plane/one-worker workload cluster, and installs a
+separate Flux instance there. It does not provision AWS resources:
 
 ```sh
 mise -E local-host install
 mise -E local-host run bootstrap
-mise -E local-host run oci-push  # republish mgmt/local-host after local changes
+mise -E local-host run oci-push  # republish local management and workload paths
 mise -E local-host run kubeconfigs
 mise -E local-host run teardown
 ```

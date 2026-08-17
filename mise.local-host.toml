@@ -12,12 +12,15 @@ REGISTRY_PORT="${REGISTRY_PORT:-5001}"
 OCI_REPOSITORY="${OCI_REPOSITORY:-knr-ops}"
 OCI_TAG="${OCI_TAG:-latest}"
 OCI_URL="oci://localhost:${REGISTRY_PORT}/${OCI_REPOSITORY}:${OCI_TAG}"
-OCI_SOURCE_PATH="mgmt/local-host"
+OCI_MGMT_SOURCE_PATH="mgmt/local-host"
+OCI_WORKLOAD_SOURCE_PATH="workload/local-host"
 
-if [ ! -d "$OCI_SOURCE_PATH" ]; then
-  echo "ERROR: OCI source directory does not exist: $OCI_SOURCE_PATH" >&2
-  exit 1
-fi
+for source_path in "$OCI_MGMT_SOURCE_PATH" "$OCI_WORKLOAD_SOURCE_PATH"; do
+  if [ ! -d "$source_path" ]; then
+    echo "ERROR: OCI source directory does not exist: $source_path" >&2
+    exit 1
+  fi
+done
 
 if ! curl --fail --silent --show-error "http://localhost:${REGISTRY_PORT}/v2/" >/dev/null; then
   echo "ERROR: local registry is unavailable at localhost:${REGISTRY_PORT}" >&2
@@ -36,10 +39,11 @@ cleanup_artifact_root() {
   rm -rf "$ARTIFACT_ROOT"
 }
 trap cleanup_artifact_root EXIT
-mkdir -p "$ARTIFACT_ROOT/mgmt"
-cp -R "$OCI_SOURCE_PATH" "$ARTIFACT_ROOT/mgmt/local-host"
+mkdir -p "$ARTIFACT_ROOT/mgmt" "$ARTIFACT_ROOT/workload"
+cp -R "$OCI_MGMT_SOURCE_PATH" "$ARTIFACT_ROOT/mgmt/local-host"
+cp -R "$OCI_WORKLOAD_SOURCE_PATH" "$ARTIFACT_ROOT/workload/local-host"
 
-echo "==> Packaging ${OCI_SOURCE_PATH} as mgmt/local-host"
+echo "==> Packaging mgmt/local-host and workload/local-host"
 echo "==> Pushing ${OCI_URL}"
 flux push artifact "$OCI_URL" \
   --path="$ARTIFACT_ROOT" \

@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-workload-kindnet
+  namespace: default
+data:
+  kindnet.yaml: |
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: kindnet
+      namespace: kube-system
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: kindnet
+    rules:
+      - apiGroups: [""]
+        resources: ["nodes", "pods", "namespaces"]
+        verbs: ["list", "watch"]
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["networkpolicies"]
+        verbs: ["list", "watch"]
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: kindnet
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: kindnet
+    subjects:
+      - kind: ServiceAccount
+        name: kindnet
+        namespace: kube-system
+    ---
+    apiVersion: apps/v1
+    kind: DaemonSet
+    metadata:
+      name: kindnet
+      namespace: kube-system
+      labels:
+        app: kindnet
+        k8s-app: kindnet
+        tier: node
+    spec:
+      selector:
+        matchLabels:
+          app: kindnet
+      template:
+        metadata:
+          labels:
+            app: kindnet
+            k8s-app: kindnet
+            tier: node
+        spec:
+          serviceAccountName: kindnet
+          hostNetwork: true
+          nodeSelector:
+            kubernetes.io/os: linux
+          priorityClassName: system-node-critical
+          tolerations:
+            - operator: Exists
+          containers:
+            - name: kindnet-cni
+              image: docker.io/kindest/kindnetd:v20260528-9350166c
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: HOST_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: POD_SUBNET
+                  value: 192.168.0.0/16
+                - name: CONTROL_PLANE_ENDPOINT
+                  value: host.docker.internal:6443
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 50Mi
+                limits:
+                  cpu: 100m
+                  memory: 50Mi
+              securityContext:
+                capabilities:
+                  add: ["NET_RAW", "NET_ADMIN"]
+              volumeMounts:
+                - name: cni-cfg
+                  mountPath: /etc/cni/net.d
+                - name: xtables-lock
+                  mountPath: /run/xtables.lock
+                - name: lib-modules
+                  mountPath: /lib/modules
+                  readOnly: true
+                - name: nri-plugin
+                  mountPath: /var/run/nri
+          volumes:
+            - name: cni-cfg
+              hostPath:
+                path: /etc/cni/net.d
+            - name: xtables-lock
+              hostPath:
+                path: /run/xtables.lock
+                type: FileOrCreate
+            - name: lib-modules
+              hostPath:
+                path: /lib/modules
+            - name: nri-plugin
+              hostPath:
+                path: /var/run/nri
+---
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: local-workload-kindnet
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      profile: local-host
+  strategy: ApplyOnce
+  resources:
+    - kind: ConfigMap
+      name: local-workload-kindnet

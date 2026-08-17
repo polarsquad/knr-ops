@@ -90,11 +90,15 @@ The local-host profile performs the cluster, Flux Operator, and FluxInstance
 steps in the `mgmt` management cluster, but does not create GitHub or SOPS
 secrets. Instead, it bootstraps a local Docker Registry container (`registry:2`)
 running on the host machine (accessible at `localhost:5001` by default),
-publishes the `mgmt/local-host/` folder as the initial `knr-ops:latest` OCI
+publishes the `mgmt/local-host/` and `workload/local-host/` folders as the
+initial `knr-ops:latest` OCI
 artifact, and configures Flux to reconcile that path from the artifact. Flux
 then installs the CAPI core, kubeadm, and Docker infrastructure providers and
 creates `local-workload`, a one-control-plane/one-worker Kubernetes cluster in
-containers. CAPD is intended for local development and testing, not production.
+containers. The management cluster then installs a Flux Operator and
+FluxInstance on `local-workload`; that instance reconciles
+`workload/local-host/` from the same OCI artifact. CAPD is intended for local
+development and testing, not production.
 
 **OCI Registry (local-host profile only):**
 - Provides a local container registry for development workflows
@@ -105,7 +109,7 @@ containers. CAPD is intended for local development and testing, not production.
 
 **Workflow:**
 ```bash
-# Republish the mgmt/local-host/ folder after making local changes
+# Republish the local management and workload folders after making changes
 mise -E local-host run oci-push
 
 # Optional overrides
@@ -117,10 +121,10 @@ OCI_REPOSITORY=my-config OCI_TAG=v1 \
 # registry's in-cluster endpoint, knr-registry:5000.
 ```
 
-The artifact contains only the `mgmt/local-host/` folder, preserving that
-directory path when the artifact is pulled. Keeping the source scope this
-narrow also prevents local credentials and age private keys elsewhere in the
-repository from being packaged.
+The artifact contains only `mgmt/local-host/` and `workload/local-host/`,
+preserving those directory paths when the artifact is pulled. Keeping the
+source scope narrow also prevents local credentials and age private keys
+elsewhere in the repository from being packaged.
 
 The AWS profile adds the GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/aws/`.
 
@@ -138,12 +142,13 @@ mise -E local-host run kubeconfigs
 KUBECONFIG=local-workload.kubeconfig kubectl get nodes
 ```
 
-The workload uses Kubernetes v1.35.0 and bootstraps Calico v3.32.1 as its CNI.
+The workload uses Kubernetes v1.35.0. A CAPI ClusterResourceSet installs a
+pinned Kindnet daemon as its CNI before the Flux addons are delivered.
 The management cluster needs access to the container-engine socket, which
 `bootstrap.sh` mounts automatically.
 
-Local-host bootstrap streams the Flux Kustomization status in the same terminal
-and returns after `docker-workload-cluster` becomes Ready. The readiness wait
+Local-host bootstrap streams the management Flux Kustomization status in the
+same terminal and returns after `flux-apps` becomes Ready. The readiness wait
 defaults to 15 minutes and can be changed with `LOCAL_RECONCILE_TIMEOUT`.
 
 EKS clusters typically take 15–25 minutes to come up; node groups and the
