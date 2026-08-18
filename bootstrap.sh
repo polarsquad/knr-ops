@@ -369,6 +369,13 @@ if [ "$PROFILE" = local-host ]; then
     sleep 2
   done
 
+  echo ">>> Waiting for workload Flux controllers to be ready..."
+  kubectl --kubeconfig "$workload_kubeconfig" wait pod \
+    --namespace flux-system \
+    --selector='app.kubernetes.io/part-of=flux' \
+    --for=condition=Ready \
+    --timeout="$LOCAL_RECONCILE_TIMEOUT"
+
   flux logs \
     --kubeconfig "$workload_kubeconfig" \
     --all-namespaces \
