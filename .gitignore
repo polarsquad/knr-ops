@@ -17,3 +17,5 @@ local-workload.kubeconfig
 airgap/archives/
 airgap/rendered/
 airgap/sbom/
+airgap/config-artifact/
+airgap/*.tar.zst

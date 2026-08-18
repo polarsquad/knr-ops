@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
 echo "==> 1/4 validate"
@@ -21,7 +21,7 @@ mise run validate
 echo "==> 2/4 config artifact"
 "$SCRIPT_DIR/build-config-artifact.sh"
 
-echo "==> 3/4 workload-node pod images"
+echo "==> 3/4 workload-node pod images + OCI charts"
 WORKLOAD_IMAGES=(
   ghcr.io/controlplaneio-fluxcd/flux-operator:v0.58.0
   ghcr.io/fluxcd/source-controller:v1.9.4
@@ -35,6 +35,14 @@ for img in "${WORKLOAD_IMAGES[@]}"; do
 done
 docker save -o airgap/archives/workload-pod-images.tar "${WORKLOAD_IMAGES[@]}"
 echo "    saved airgap/archives/workload-pod-images.tar"
+
+# OCI charts the workload cluster needs in the gap (seeded into knr-registry
+# by the stage script): the per-cluster flux-operator chart (HelmChartProxy)
+# and the podinfo chart (workload HelmRelease).
+mkdir -p airgap/archives/charts
+helm pull oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator --version 0.58.0 -d airgap/archives/charts
+helm pull oci://ghcr.io/stefanprodan/charts/podinfo --version 6.14.0 -d airgap/archives/charts
+echo "    staged charts: $(ls airgap/archives/charts/)"
 
 echo "==> 4/4 zarf package create"
 cd airgap

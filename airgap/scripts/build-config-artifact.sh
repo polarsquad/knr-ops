@@ -34,12 +34,194 @@ cp -R mgmt/local-host/clusters/docker "$LH/clusters/docker"
 cp mgmt/local-host/addons/cni/kindnet.yaml "$LH/addons/cni/kindnet.yaml"
 cp mgmt/local-host/addons/cni/kustomization.yaml "$LH/addons/cni/kustomization.yaml"
 cp mgmt/local-host/addons/cni/flux-ks.yaml "$LH/addons/cni/flux-ks.yaml"
-cp mgmt/local-host/addons/flux-apps/flux-instance.yaml "$LH/addons/flux-apps/flux-instance.yaml"
-cp mgmt/local-host/addons/flux-apps/flux-operator.yaml "$LH/addons/flux-apps/flux-operator.yaml"
 cp mgmt/local-host/addons/flux-apps/kustomization.yaml "$LH/addons/flux-apps/kustomization.yaml"
 
-# Workload tree ships verbatim (consumed by the per-cluster Flux in Phase 5).
+# Airgap variant of the per-cluster flux-operator HelmChartProxy: fetch the
+# chart from knr-registry (seeded by stage-and-create-cluster.sh) instead of
+# ghcr.io, which is unreachable in the gap.
+cat > "$LH/addons/flux-apps/flux-operator.yaml" <<'EOF'
+apiVersion: addons.cluster.x-k8s.io/v1alpha1
+kind: HelmChartProxy
+metadata:
+  name: flux-operator
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      fluxcd: enabled
+      profile: local-host
+  repoURL: oci://knr-registry:5000/charts
+  chartName: flux-operator
+  version: "0.58.0"
+  namespace: flux-system
+  options:
+    waitForJobs: true
+    wait: true
+    timeout: 5m
+    install:
+      createNamespace: true
+EOF
+
+# Airgap variant of the workload-cluster FluxInstance: distribution.artifact
+# is omitted (embedded distribution manifests; the operator's artifact fetch
+# has no insecure-registry option) and the four controllers are pinned back to
+# tags (the embedded distribution's manifest-list digests do not resolve in a
+# single-arch registry). The tag images are pre-loaded into the CAPD node
+# stores via preLoadImages (see the cluster-class patch below), so no workload
+# pod ever needs the internet. sync.url keeps pointing at knr-registry, which
+# stage-and-create-cluster.sh recreates and seeds in the gap.
+cat > "$LH/addons/flux-apps/flux-instance.yaml" <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-workload-flux-instance
+  namespace: default
+data:
+  flux-instance.yaml: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: flux-system
+    ---
+    apiVersion: fluxcd.controlplane.io/v1
+    kind: FluxInstance
+    metadata:
+      name: flux
+      namespace: flux-system
+      annotations:
+        fluxcd.controlplane.io/reconcileEvery: "1h"
+        fluxcd.controlplane.io/reconcileTimeout: "5m"
+    spec:
+      distribution:
+        version: "2.x"
+        registry: "ghcr.io/fluxcd"
+      components:
+        - source-controller
+        - kustomize-controller
+        - helm-controller
+        - notification-controller
+      cluster:
+        type: kubernetes
+        size: small
+        multitenant: false
+        networkPolicy: true
+        domain: cluster.local
+      sync:
+        kind: OCIRepository
+        url: oci://knr-registry:5000/knr-ops
+        ref: latest
+        path: workload/local-host
+      kustomize:
+        patches:
+          - patch: |
+              - op: add
+                path: /spec/insecure
+                value: true
+            target:
+              kind: OCIRepository
+          - patch: |
+              - op: replace
+                path: /spec/template/spec/containers/0/image
+                value: ghcr.io/fluxcd/source-controller:v1.9.4
+            target:
+              kind: Deployment
+              name: source-controller
+          - patch: |
+              - op: replace
+                path: /spec/template/spec/containers/0/image
+                value: ghcr.io/fluxcd/kustomize-controller:v1.9.4
+            target:
+              kind: Deployment
+              name: kustomize-controller
+          - patch: |
+              - op: replace
+                path: /spec/template/spec/containers/0/image
+                value: ghcr.io/fluxcd/helm-controller:v1.6.3
+            target:
+              kind: Deployment
+              name: helm-controller
+          - patch: |
+              - op: replace
+                path: /spec/template/spec/containers/0/image
+                value: ghcr.io/fluxcd/notification-controller:v1.9.3
+            target:
+              kind: Deployment
+              name: notification-controller
+---
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: local-workload-flux-instance
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      fluxcd: enabled
+      profile: local-host
+  strategy: ApplyOnce
+  resources:
+    - kind: ConfigMap
+      name: local-workload-flux-instance
+EOF
+
+# cluster-class.yaml: add preLoadImages to both DevMachineTemplates so the
+# workload-cluster Flux controllers and podinfo are present in each node's
+# containerd store (loaded from the host Docker daemon, which
+# stage-and-create-cluster.sh populates from workload-pod-images.tar). The
+# control-plane / kindnet / coredns images are already pre-baked into
+# kindest/node and need no entry here.
+python3 - "$LH/clusters/docker/cluster-class.yaml" <<'PY'
+import sys
+path = sys.argv[1]
+txt = open(path).read()
+preload = """          preLoadImages:
+            - ghcr.io/controlplaneio-fluxcd/flux-operator:v0.58.0
+            - ghcr.io/fluxcd/source-controller:v1.9.4
+            - ghcr.io/fluxcd/kustomize-controller:v1.9.4
+            - ghcr.io/fluxcd/helm-controller:v1.6.3
+            - ghcr.io/fluxcd/notification-controller:v1.9.3
+            - ghcr.io/stefanprodan/podinfo:6.14.0
+"""
+anchor = "          customImage: kindest/node:v1.35.0\n"
+count = txt.count(anchor)
+if count != 2:
+    sys.exit(f"ERROR: expected 2 DevMachineTemplate customImage anchors, found {count}")
+txt = txt.replace(anchor, anchor + preload)
+open(path, "w").write(txt)
+print(f"patched {path}: preLoadImages added to {count} DevMachineTemplates")
+PY
+
+# Workload tree: rewrite the podinfo chart OCI URL to knr-registry (seeded in
+# the gap) and mark the OCIRepository insecure (plain HTTP). The FluxInstance
+# insecure patch only covers the operator-generated sync source, not
+# tree-defined OCIRepositories. Everything else ships verbatim.
 cp -R workload/local-host "$ARTIFACT_ROOT/workload/local-host"
+python3 - "$ARTIFACT_ROOT/workload/local-host/podinfo/helm.yaml" <<'PY'
+import sys
+path = sys.argv[1]
+txt = open(path).read()
+txt = txt.replace(
+    "oci://ghcr.io/stefanprodan/charts/podinfo",
+    "oci://knr-registry:5000/stefanprodan/charts/podinfo",
+)
+if "insecure: true" not in txt:
+    txt = txt.replace("spec:\n  interval: 1h\n  url:", "spec:\n  interval: 1h\n  insecure: true\n  url:", 1)
+open(path, "w").write(txt)
+assert "insecure: true" in txt and "knr-registry" in txt
+print(f"patched {path}: podinfo chart -> knr-registry, insecure: true")
+PY
+
+# Optional registry override: WORKLOAD_REGISTRY_HOST (default knr-registry)
+# rewrites the workload-side registry references. Use a distinct name when
+# rehearsing on a host that already runs a live baseline, so the rehearsal's
+# seeded registry never touches the baseline's knr-ops:latest.
+if [ -n "${WORKLOAD_REGISTRY_HOST:-}" ] && [ "$WORKLOAD_REGISTRY_HOST" != "knr-registry" ]; then
+  echo "==> Rewriting workload registry references to '${WORKLOAD_REGISTRY_HOST}'"
+  grep -rl "knr-registry" "$ARTIFACT_ROOT" | while IFS= read -r f; do
+    sed -i '' "s/knr-registry/${WORKLOAD_REGISTRY_HOST}/g" "$f"
+  done
+fi
+
 
 # Trimmed root kustomization: no infrastructure/ or capi-providers/ entries.
 cat > "$LH/kustomization.yaml" <<'EOF'
@@ -128,5 +310,12 @@ flux push artifact "$OCI_URL" \
   --revision="${GIT_REF}@sha1:${GIT_SHA}" \
   --insecure-registry \
   --reproducible
+
+# Keep a plain-directory copy of the tree in the kit: the gap-side stage
+# script re-pushes it into knr-registry as knr-ops:latest for the workload
+# cluster's Flux (which does not talk to the Zarf registry).
+rm -rf "$REPO_ROOT/airgap/config-artifact"
+cp -R "$ARTIFACT_ROOT" "$REPO_ROOT/airgap/config-artifact"
+echo "==> Kit copy at airgap/config-artifact/ ($(du -sh "$REPO_ROOT/airgap/config-artifact" | cut -f1))"
 
 echo "==> Done. zarf.yaml's knr-ops-config component references localhost:${REGISTRY_PORT}/${OCI_REPOSITORY}:${OCI_TAG}"
