@@ -22,6 +22,7 @@ echo "==> 2/4 config artifact"
 "$SCRIPT_DIR/build-config-artifact.sh"
 
 echo "==> 3/4 workload-node pod images + OCI charts"
+mkdir -p airgap/archives
 WORKLOAD_IMAGES=(
   registry.k8s.io/pause:3.10.1
   docker.io/kindest/kindnetd:v20260528-9350166c
