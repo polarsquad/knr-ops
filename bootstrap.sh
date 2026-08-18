@@ -210,10 +210,33 @@ fi
 echo ">>> Installing Flux Operator..."
 ANONYMOUS_REGISTRY_CONFIG="$(mktemp)"
 printf '{}\n' > "$ANONYMOUS_REGISTRY_CONFIG"
-cleanup_registry_config() {
+flux_watch_pid=""
+workload_flux_log_pid=""
+workload_kubeconfig=""
+cleanup_flux_watch() {
+  if [ -n "$flux_watch_pid" ]; then
+    kill "$flux_watch_pid" >/dev/null 2>&1 || true
+    wait "$flux_watch_pid" >/dev/null 2>&1 || true
+    flux_watch_pid=""
+  fi
+}
+cleanup_workload_reconciliation() {
+  if [ -n "$workload_flux_log_pid" ]; then
+    kill "$workload_flux_log_pid" >/dev/null 2>&1 || true
+    wait "$workload_flux_log_pid" >/dev/null 2>&1 || true
+    workload_flux_log_pid=""
+  fi
+  if [ -n "$workload_kubeconfig" ]; then
+    rm -f "$workload_kubeconfig"
+    workload_kubeconfig=""
+  fi
+}
+cleanup_bootstrap() {
+  cleanup_flux_watch
+  cleanup_workload_reconciliation
   rm -f "$ANONYMOUS_REGISTRY_CONFIG"
 }
-trap cleanup_registry_config EXIT
+trap cleanup_bootstrap EXIT
 helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
   --namespace flux-system \
   --create-namespace \
@@ -318,11 +341,6 @@ if [ "$PROFILE" = local-host ]; then
   echo ">>> Watching until the local workload cluster and Flux addons are ready..."
   flux get kustomizations --watch --timeout="$LOCAL_RECONCILE_TIMEOUT" &
   flux_watch_pid=$!
-  cleanup_flux_watch() {
-    kill "$flux_watch_pid" >/dev/null 2>&1 || true
-    wait "$flux_watch_pid" >/dev/null 2>&1 || true
-  }
-  trap 'cleanup_flux_watch; cleanup_registry_config' EXIT
 
   if ! kubectl wait kustomization/flux-apps \
       --namespace flux-system \
@@ -333,20 +351,10 @@ if [ "$PROFILE" = local-host ]; then
     exit 1
   fi
   cleanup_flux_watch
-  trap cleanup_registry_config EXIT
 
   echo ""
   echo ">>> Workload cluster Flux reconciliation errors"
   workload_kubeconfig="$(mktemp)"
-  workload_flux_log_pid=""
-  cleanup_workload_reconciliation() {
-    if [ -n "$workload_flux_log_pid" ]; then
-      kill "$workload_flux_log_pid" >/dev/null 2>&1 || true
-      wait "$workload_flux_log_pid" >/dev/null 2>&1 || true
-    fi
-    rm -f "$workload_kubeconfig"
-  }
-  trap 'cleanup_workload_reconciliation; cleanup_registry_config' EXIT
 
   clusterctl get kubeconfig local-workload > "$workload_kubeconfig"
   workload_endpoint="$($CONTAINER_ENGINE port local-workload-lb 6443/tcp | head -1)"
@@ -393,7 +401,6 @@ if [ "$PROFILE" = local-host ]; then
     exit 1
   fi
   cleanup_workload_reconciliation
-  trap cleanup_registry_config EXIT
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
