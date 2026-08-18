@@ -101,6 +101,20 @@ spec:
     - name: local-workload-cni
 EOF
 
+# Optional rehearsal rename: AIRGAP_CLUSTER_NAME=airgap-wl rewrites every
+# local-workload reference inside the assembled mgmt tree (copied files AND
+# the generated flux-ks files above, so dependsOn references stay consistent).
+# Use when rehearsing on a host whose Docker daemon already runs a live
+# local-workload baseline: CAPD matches containers by the
+# cluster.x-k8s.io/cluster-name label, so two clusters with the same name on
+# one daemon would collide/adopt.
+if [ -n "${AIRGAP_CLUSTER_NAME:-}" ]; then
+  echo "==> Renaming workload cluster to '${AIRGAP_CLUSTER_NAME}' in the artifact copy"
+  grep -rl "local-workload" "$LH" | while IFS= read -r f; do
+    sed -i '' "s/local-workload/${AIRGAP_CLUSTER_NAME}/g" "$f"
+  done
+fi
+
 GIT_SHA=$(git rev-parse HEAD)
 GIT_REF=$(git branch --show-current)
 GIT_REF="${GIT_REF:-detached}"

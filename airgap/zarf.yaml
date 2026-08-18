@@ -86,27 +86,32 @@ components:
   # FluxInstance: points the management Flux at the config artifact in the
   # Zarf internal registry. distribution.artifact is omitted so the operator
   # uses its embedded distribution manifests (offline-safe).
+  #
+  # Deployed via files: + an apply action, NOT a manifests: entry. In v0.83
+  # Zarf wraps manifests in a generated Helm chart whose install fails on CRs
+  # it cannot adopt ("exists and cannot be imported into the current
+  # release"), and the flux-instance Helm chart is unusable offline because it
+  # renders spec.distribution.artifact unconditionally (the operator then
+  # tries HTTPS against the plain-HTTP internal registry and fails).
   - name: flux-instance
     required: true
-    manifests:
-      - name: flux-instance
-        namespace: flux-system
-        files:
-          - manifests/flux-instance.yaml
+    files:
+      - source: manifests/flux-instance.yaml
+        target: /tmp/knr-ops-airgap/flux-instance.yaml
+    actions:
+      onDeploy:
+        after:
+          - description: Apply the FluxInstance (kubectl, ambient context)
+            cmd: kubectl apply -f /tmp/knr-ops-airgap/flux-instance.yaml
+            maxTotalSeconds: 120
+          - description: Wait for Flux to be Ready (controllers + sync)
+            cmd: kubectl -n flux-system wait --for=condition=Ready fluxinstance/flux --timeout=10m
+            maxTotalSeconds: 640
     images:
       - ghcr.io/fluxcd/source-controller:v1.9.4
       - ghcr.io/fluxcd/kustomize-controller:v1.9.4
       - ghcr.io/fluxcd/helm-controller:v1.6.3
       - ghcr.io/fluxcd/notification-controller:v1.9.3
-    healthChecks:
-      - apiVersion: apps/v1
-        kind: Deployment
-        name: source-controller
-        namespace: flux-system
-      - apiVersion: apps/v1
-        kind: Deployment
-        name: kustomize-controller
-        namespace: flux-system
 
   # CAPI core: 13 CRDs (Cluster, Machine, MachineDeployment, ClusterClass,
   # ClusterResourceSet, ...) + the capi-controller-manager. Captured from the
@@ -148,11 +153,11 @@ components:
       - apiVersion: apps/v1
         kind: Deployment
         name: capi-kubeadm-bootstrap-controller-manager
-        namespace: capi-system
+        namespace: capi-kubeadm-bootstrap-system
       - apiVersion: apps/v1
         kind: Deployment
         name: capi-kubeadm-control-plane-controller-manager
-        namespace: capi-system
+        namespace: capi-kubeadm-control-plane-system
       - apiVersion: apps/v1
         kind: Deployment
         name: capd-controller-manager

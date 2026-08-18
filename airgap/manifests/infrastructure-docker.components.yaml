@@ -5662,9 +5662,9 @@ spec:
       containers:
       - args:
         - --leader-elect
-        - --diagnostics-address=${CAPI_DIAGNOSTICS_ADDRESS:=:8443}
-        - --insecure-diagnostics=${CAPI_INSECURE_DIAGNOSTICS:=false}
-        - --feature-gates=MachinePool=${EXP_MACHINE_POOL:=true},ClusterTopology=${CLUSTER_TOPOLOGY:=false},PriorityQueue=${EXP_PRIORITY_QUEUE:=true},ReconcilerRateLimiting=${EXP_RECONCILER_RATE_LIMITING:=true}
+        - --diagnostics-address=:8443
+        - --insecure-diagnostics=false
+        - --feature-gates=ClusterTopology=true
         env:
         - name: POD_NAMESPACE
           valueFrom:
@@ -5683,7 +5683,7 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: DOCKER_HOST
-          value: ${CAPD_DOCKER_HOST:=""}
+          value: ""
         image: gcr.io/k8s-staging-cluster-api/capd-manager:v1.14.0
         imagePullPolicy: IfNotPresent
         livenessProbe:

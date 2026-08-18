@@ -1,19 +1,32 @@
-# FluxInstance for the airgapped management cluster.
+# FluxInstance for the airgapped management cluster. Applied by a Zarf action
+# (kubectl apply) rather than a manifests: entry; see zarf.yaml for why.
+#
 # Differences from the connected bootstrap (bootstrap.sh, local-host profile):
+#
 #   - spec.distribution.artifact is OMITTED: the flux-operator then uses its
 #     embedded distribution manifests instead of fetching
-#     oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests at runtime
-#     (that fetch would fail offline, and the Zarf agent cannot rewrite an
-#     outbound pull).
-#   - spec.distribution.registry stays ghcr.io/fluxcd: the controller pods the
-#     operator generates are rewritten to the Zarf internal registry by the
-#     Zarf agent at admission time (the image-rewrite linchpin).
+#     oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests at runtime.
+#     That fetch fails offline (and the operator has no insecure-registry
+#     option for it - verified empirically: "http: server gave HTTP response
+#     to HTTPS client" against the plain-HTTP Zarf registry).
+#
+#   - spec.distribution.registry stays ghcr.io/fluxcd, and the four controller
+#     images are pinned back to TAGS via the kustomize patches below. The
+#     embedded distribution pins controller images to multi-arch manifest-list
+#     digests; Zarf's image pipeline carries single-arch manifests, so those
+#     digests do not resolve in the internal registry ("not found" pull
+#     errors, verified empirically). Tag references are rewritten by the Zarf
+#     agent to the <tag>-zarf-<hash> tags that DO exist in the registry.
+#
 #   - spec.sync.url points at the Zarf internal registry's in-cluster service
 #     DNS name (###ZARF_CONST_REGISTRY_INTERNAL###). The nodeport address
-#     (127.0.0.1:31999) only works from a node's loopback, not from pods.
+#     (127.0.0.1:31999) only resolves from a node's loopback, not from pods.
+#
 #   - spec.sync.pullSecret is Zarf's generated private-registry secret, which
 #     Zarf creates in flux-system and which covers the in-cluster DNS name.
-#   - the insecure patch is kept: the internal registry is plain HTTP.
+#
+#   - the insecure OCIRepository patch is kept: the internal registry is plain
+#     HTTP (source-controller supports spec.insecure, the operator does not).
 apiVersion: fluxcd.controlplane.io/v1
 kind: FluxInstance
 metadata:
@@ -51,4 +64,32 @@ spec:
           - op: add
             path: /spec/insecure
             value: true
+      - target:
+          kind: Deployment
+          name: source-controller
+        patch: |-
+          - op: replace
+            path: /spec/template/spec/containers/0/image
+            value: ghcr.io/fluxcd/source-controller:v1.9.4
+      - target:
+          kind: Deployment
+          name: kustomize-controller
+        patch: |-
+          - op: replace
+            path: /spec/template/spec/containers/0/image
+            value: ghcr.io/fluxcd/kustomize-controller:v1.9.4
+      - target:
+          kind: Deployment
+          name: helm-controller
+        patch: |-
+          - op: replace
+            path: /spec/template/spec/containers/0/image
+            value: ghcr.io/fluxcd/helm-controller:v1.6.3
+      - target:
+          kind: Deployment
+          name: notification-controller
+        patch: |-
+          - op: replace
+            path: /spec/template/spec/containers/0/image
+            value: ghcr.io/fluxcd/notification-controller:v1.9.3
   wait: true

@@ -9903,10 +9903,10 @@ spec:
       containers:
       - args:
         - --leader-elect
-        - --diagnostics-address=${CAPI_DIAGNOSTICS_ADDRESS:=:8443}
-        - --insecure-diagnostics=${CAPI_INSECURE_DIAGNOSTICS:=false}
-        - --feature-gates=MachinePool=${EXP_MACHINE_POOL:=true},KubeadmBootstrapFormatIgnition=${EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION:=false},PriorityQueue=${EXP_PRIORITY_QUEUE:=true},ReconcilerRateLimiting=${EXP_RECONCILER_RATE_LIMITING:=true}
-        - --bootstrap-token-ttl=${KUBEADM_BOOTSTRAP_TOKEN_TTL:=15m}
+        - --diagnostics-address=:8443
+        - --insecure-diagnostics=false
+        - --feature-gates=ClusterTopology=true
+        - --bootstrap-token-ttl=15m
         command:
         - /manager
         env:
