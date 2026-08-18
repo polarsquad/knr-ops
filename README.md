@@ -77,19 +77,27 @@ registry, and the Flux Operator and FluxInstance. It publishes the
 `mgmt/local-host/` and `workload/local-host/` folders as the `knr-ops:latest`
 OCI artifact. Flux installs CAPI with its Docker infrastructure provider (CAPD),
 provisions a local one-control-plane/one-worker workload cluster, and installs a
-separate Flux instance there. It does not provision AWS resources:
+separate Flux instance there. That workload Flux instance reconciles Podinfo,
+providing an end-to-end local path from management-cluster bootstrap through
+workload delivery and application access. This covers the complete GitOps and
+CAPI lifecycle without provisioning AWS resources:
 
 ```sh
 mise -E local-host install
 mise -E local-host run bootstrap
 mise -E local-host run oci-push  # republish local management and workload paths
 mise -E local-host run kubeconfigs
+mise -E local-host run podinfo-port-forward  # http://localhost:9898
 mise -E local-host run teardown
 ```
 
 The Flux charts are pulled anonymously. The AWS profile requires a
 GitHub PAT so Flux can clone this repository; the local-host profile does not require
 GitHub or AWS credentials.
+
+`mise -E local-host run bootstrap` waits for both the management and workload
+Flux reconciliation chains and streams their progress. A successful bootstrap,
+followed by the Podinfo port-forward, verifies the end-to-end local-host flow.
 
 The local-host teardown deletes the CAPD workload cluster before deleting the
 `mgmt` kind cluster and local registry container. The default teardown path

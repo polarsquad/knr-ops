@@ -86,3 +86,19 @@ chmod 600 "$KUBECONFIG_FILE"
 echo "Wrote ${KUBECONFIG_FILE}"
 echo "Use with: KUBECONFIG=${KUBECONFIG_FILE} kubectl get nodes"
 '''
+
+[tasks.podinfo-port-forward]
+description = "Expose workload Podinfo at http://localhost:9898"
+run = '''
+KUBECONFIG_FILE="${KUBECONFIG_FILE:-local-workload.kubeconfig}"
+if [ ! -f "$KUBECONFIG_FILE" ]; then
+  echo "ERROR: workload kubeconfig not found: $KUBECONFIG_FILE" >&2
+  echo "       Create it with: mise -E local-host run kubeconfigs" >&2
+  exit 1
+fi
+
+echo "Podinfo will be available at http://localhost:9898"
+echo "Press Ctrl-C to stop forwarding."
+kubectl --kubeconfig "$KUBECONFIG_FILE" \
+  port-forward --namespace podinfo service/podinfo 9898:9898
+'''

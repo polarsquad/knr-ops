@@ -288,19 +288,12 @@ kubectl wait --namespace flux-system --for=condition=ready pod \
 # ── Step 5: Watch local-host reconciliation ──────────────────────────────────
 # Stream the GitOps handoff in the bootstrap terminal for the local profile.
 # The final Kustomization is created by the OCI root, so wait for it to appear
-# before asking kubectl to wait for its Ready condition.
+# before starting the progress watcher or asking kubectl to wait for readiness.
+# Matching the watch timeout to the authoritative readiness timeout prevents
+# the progress display from reporting a misleading early timeout.
 if [ "$PROFILE" = local-host ]; then
   echo ""
   echo ">>> Step 5: Flux reconciliation progress"
-  echo ">>> Watching until the local workload cluster is ready..."
-  flux get kustomizations --watch &
-  flux_watch_pid=$!
-  cleanup_flux_watch() {
-    kill "$flux_watch_pid" >/dev/null 2>&1 || true
-    wait "$flux_watch_pid" >/dev/null 2>&1 || true
-  }
-  trap 'cleanup_flux_watch; cleanup_registry_config' EXIT
-
   reconcile_discovery_attempts=0
   until kubectl get kustomization flux-apps \
       --namespace flux-system >/dev/null 2>&1; do
@@ -313,6 +306,15 @@ if [ "$PROFILE" = local-host ]; then
     sleep 2
   done
 
+  echo ">>> Watching until the local workload cluster and Flux addons are ready..."
+  flux get kustomizations --watch --timeout="$LOCAL_RECONCILE_TIMEOUT" &
+  flux_watch_pid=$!
+  cleanup_flux_watch() {
+    kill "$flux_watch_pid" >/dev/null 2>&1 || true
+    wait "$flux_watch_pid" >/dev/null 2>&1 || true
+  }
+  trap 'cleanup_flux_watch; cleanup_registry_config' EXIT
+
   if ! kubectl wait kustomization/flux-apps \
       --namespace flux-system \
       --for=condition=Ready \
@@ -322,6 +324,65 @@ if [ "$PROFILE" = local-host ]; then
     exit 1
   fi
   cleanup_flux_watch
+  trap cleanup_registry_config EXIT
+
+  echo ""
+  echo ">>> Workload cluster Flux reconciliation logs"
+  workload_kubeconfig="$(mktemp)"
+  workload_flux_log_pid=""
+  cleanup_workload_reconciliation() {
+    if [ -n "$workload_flux_log_pid" ]; then
+      kill "$workload_flux_log_pid" >/dev/null 2>&1 || true
+      wait "$workload_flux_log_pid" >/dev/null 2>&1 || true
+    fi
+    rm -f "$workload_kubeconfig"
+  }
+  trap 'cleanup_workload_reconciliation; cleanup_registry_config' EXIT
+
+  clusterctl get kubeconfig local-workload > "$workload_kubeconfig"
+  workload_endpoint="$($CONTAINER_ENGINE port local-workload-lb 6443/tcp | head -1)"
+  workload_port="${workload_endpoint##*:}"
+  case "$workload_port" in
+    ''|*[!0-9]*)
+      echo "ERROR: cannot determine the local-workload API server port" >&2
+      exit 1
+      ;;
+  esac
+  kubectl config set-cluster local-workload \
+    --server="https://127.0.0.1:${workload_port}" \
+    --kubeconfig="$workload_kubeconfig" >/dev/null
+
+  workload_flux_discovery_attempts=0
+  until kubectl --kubeconfig "$workload_kubeconfig" get kustomization flux-system \
+      --namespace flux-system >/dev/null 2>&1; do
+    workload_flux_discovery_attempts=$((workload_flux_discovery_attempts + 1))
+    if [ "$workload_flux_discovery_attempts" -ge 60 ]; then
+      echo "ERROR: workload Flux Kustomization was not created within 2 minutes" >&2
+      kubectl --kubeconfig "$workload_kubeconfig" get pods \
+        --namespace flux-system || true
+      exit 1
+    fi
+    sleep 2
+  done
+
+  flux logs \
+    --kubeconfig "$workload_kubeconfig" \
+    --all-namespaces \
+    --follow \
+    --since=10m &
+  workload_flux_log_pid=$!
+
+  if ! kubectl --kubeconfig "$workload_kubeconfig" wait kustomization/flux-system \
+      --namespace flux-system \
+      --for=condition=Ready \
+      --timeout="$LOCAL_RECONCILE_TIMEOUT"; then
+    echo "ERROR: workload reconciliation did not complete within ${LOCAL_RECONCILE_TIMEOUT}" >&2
+    flux get kustomizations \
+      --kubeconfig "$workload_kubeconfig" \
+      --all-namespaces
+    exit 1
+  fi
+  cleanup_workload_reconciliation
   trap cleanup_registry_config EXIT
 fi
 

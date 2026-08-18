@@ -100,6 +100,13 @@ FluxInstance on `local-workload`; that instance reconciles
 `workload/local-host/` from the same OCI artifact. CAPD is intended for local
 development and testing, not production.
 
+Together, these stages make `local-host` an end-to-end profile: one command
+bootstraps the management control plane, publishes and reconciles the OCI
+configuration, provisions a workload cluster through CAPI, installs a distinct
+Flux control plane on that cluster, and reconciles a reachable Podinfo workload.
+It exercises the complete cluster-to-workload GitOps lifecycle locally; only
+the AWS-specific infrastructure and ACK resources are outside its scope.
+
 **OCI Registry (local-host profile only):**
 - Provides a local container registry for development workflows
 - Enables developers to build and push OCI artifacts from git checkouts
@@ -142,19 +149,45 @@ mise -E local-host run kubeconfigs
 KUBECONFIG=local-workload.kubeconfig kubectl get nodes
 ```
 
+The local workload Flux instance installs Podinfo from its OCI Helm chart. Open
+it in a host browser by running the port-forward task in a separate terminal:
+
+```sh
+mise -E local-host run podinfo-port-forward
+```
+
+Then browse to <http://localhost:9898>. Press Ctrl-C to stop forwarding.
+
 The workload uses Kubernetes v1.35.0. A CAPI ClusterResourceSet installs a
 pinned Kindnet daemon as its CNI before the Flux addons are delivered.
 The management cluster needs access to the container-engine socket, which
 `bootstrap.sh` mounts automatically.
 
-Local-host bootstrap streams the management Flux Kustomization status in the
-same terminal and returns after `flux-apps` becomes Ready. The readiness wait
-defaults to 15 minutes and can be changed with `LOCAL_RECONCILE_TIMEOUT`.
+Local-host bootstrap first streams the management Flux Kustomization status.
+After `flux-apps` becomes Ready, it connects to `local-workload`, streams the
+workload Flux controller reconciliation logs, and returns after the workload
+root Kustomization becomes Ready. Each readiness wait defaults to 15 minutes
+and can be changed with `LOCAL_RECONCILE_TIMEOUT`.
 
 EKS clusters typically take 15–25 minutes to come up; node groups and the
 downstream app chain follow a few minutes after.
 
 ### Verifying the full chain
+
+For the local-host end-to-end chain:
+
+```sh
+mise -E local-host run bootstrap
+mise -E local-host run kubeconfigs
+KUBECONFIG=local-workload.kubeconfig flux get all --all-namespaces
+mise -E local-host run podinfo-port-forward  # browse to http://localhost:9898
+```
+
+Bootstrap does not return until the management and workload root
+Kustomizations are Ready. The final port-forward verifies that the workload
+Flux instance successfully delivered the application.
+
+For the AWS chain:
 
 ```sh
 # Management cluster
