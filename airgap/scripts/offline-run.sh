@@ -41,7 +41,7 @@ fail() { echo "FAIL: $*" | tee -a "$SUMMARY"; }
 : > "$SUMMARY"
 {
 step "0. waiting for Wi-Fi to go OFF (internet unreachable)..."
-online_deadline=$(( $(date +%s) + 360 ))
+online_deadline=$(( $(date +%s) + ${OFFLINE_WAIT_SECONDS:-900} ))
 while true; do
   if ! curl -s --max-time 3 https://ghcr.io >/dev/null 2>&1 && \
      ! curl -s --max-time 3 https://registry.k8s.io >/dev/null 2>&1; then
@@ -50,7 +50,7 @@ while true; do
   fi
   if [ "$(date +%s)" -ge "$online_deadline" ]; then
     echo "TIMEOUT waiting for Wi-Fi off; aborting."
-    fail "never went offline within 6 minutes"
+    fail "never went offline within ${OFFLINE_WAIT_SECONDS:-900}s"
     exit 1
   fi
   sleep 5

@@ -164,17 +164,21 @@ spec:
       name: local-workload-flux-instance
 EOF
 
-# cluster-class.yaml: add preLoadImages to both DevMachineTemplates so the
-# workload-cluster Flux controllers and podinfo are present in each node's
-# containerd store (loaded from the host Docker daemon, which
-# stage-and-create-cluster.sh populates from workload-pod-images.tar). The
+# cluster-class.yaml: add preLoadImages to both DevMachineTemplates. The
 # control-plane / kindnet / coredns images are already pre-baked into
-# kindest/node and need no entry here.
+# kindest/node, with ONE exception found by the offline run:
+# registry.k8s.io/pause:3.10 is baked but kubeadm v1.35.0 requires
+# pause:3.10.1, whose preflight pull fails offline (kubeadm init aborts, the
+# cluster never becomes Available). The flux controllers + podinfo are also
+# pre-loaded so the per-cluster Flux needs no internet. All entries are loaded
+# from the host Docker daemon (stage-and-create-cluster.sh loads
+# workload-pod-images.tar).
 python3 - "$LH/clusters/docker/cluster-class.yaml" <<'PY'
 import sys
 path = sys.argv[1]
 txt = open(path).read()
 preload = """          preLoadImages:
+            - registry.k8s.io/pause:3.10.1
             - ghcr.io/controlplaneio-fluxcd/flux-operator:v0.58.0
             - ghcr.io/fluxcd/source-controller:v1.9.4
             - ghcr.io/fluxcd/kustomize-controller:v1.9.4
