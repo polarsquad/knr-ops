@@ -1,0 +1,5 @@
+# Values for the cert-manager chart, mirrored from
+# mgmt/local-host/infrastructure/cert-manager/helmrelease.yaml.
+# In the airgap the chart is deployed by Zarf instead of a Flux HelmRelease.
+crds:
+  enabled: true

@@ -1,0 +1,1388 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+    control-plane: controller-manager
+  name: caaph-system
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: caaph-system/caaph-serving-cert
+    controller-gen.kubebuilder.io/version: v0.20.0
+  labels:
+    cluster.x-k8s.io/provider: helm
+    clusterctl.cluster.x-k8s.io/move-hierarchy: "true"
+    visualizer.cluster.x-k8s.io: ""
+  name: helmchartproxies.addons.cluster.x-k8s.io
+spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: caaph-webhook-service
+          namespace: caaph-system
+          path: /convert
+      conversionReviewVersions:
+      - v1
+  group: addons.cluster.x-k8s.io
+  names:
+    kind: HelmChartProxy
+    listKind: HelmChartProxyList
+    plural: helmchartproxies
+    shortNames:
+    - hcp
+    singular: helmchartproxy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].reason
+      name: Reason
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].message
+      name: Message
+      priority: 1
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HelmChartProxy is the Schema for the helmchartproxies API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: HelmChartProxySpec defines the desired state of HelmChartProxy.
+            properties:
+              chartName:
+                description: |-
+                  ChartName is the name of the Helm chart in the repository.
+                  e.g. chart-path oci://repo-url/chart-name as chartName: chart-name and https://repo-url/chart-name as chartName: chart-name
+                type: string
+              clusterSelector:
+                description: |-
+                  ClusterSelector selects Clusters in the same namespace with a label that matches the specified label selector. The Helm
+                  chart will be installed on all selected Clusters. If a Cluster is no longer selected, the Helm release will be uninstalled.
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: |-
+                        A label selector requirement is a selector that contains values, a key, and an operator that
+                        relates the key and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: |-
+                            operator represents a key's relationship to a set of values.
+                            Valid operators are In, NotIn, Exists and DoesNotExist.
+                          type: string
+                        values:
+                          description: |-
+                            values is an array of string values. If the operator is In or NotIn,
+                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                            the values array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                      map is equivalent to an element of matchExpressions, whose key field is "key", the
+                      operator is "In", and the values array contains only "value". The requirements are ANDed.
+                    type: object
+                type: object
+                x-kubernetes-map-type: atomic
+              credentials:
+                description: Credentials is a reference to an object containing the
+                  OCI credentials. If it is not specified, no credentials will be
+                  used.
+                properties:
+                  key:
+                    description: Key is the key in the Secret containing the OCI credentials.
+                    type: string
+                  secret:
+                    description: Secret is a reference to a Secret containing the
+                      OCI credentials.
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                required:
+                - key
+                - secret
+                type: object
+              namespace:
+                description: |-
+                  ReleaseNamespace is the namespace the Helm release will be installed on each selected
+                  Cluster. If it is not specified, it will be set to the default namespace.
+                type: string
+              options:
+                description: |-
+                  Options represents CLI flags passed to Helm operations (i.e. install, upgrade, delete) and
+                  include options such as wait, skipCRDs, timeout, waitForJobs, etc.
+                properties:
+                  atomic:
+                    description: |-
+                      Atomic indicates the installation/upgrade process to delete the installation or rollback on failure.
+                      If 'Atomic' is set, wait will be enabled automatically during helm install/upgrade operation.
+                    type: boolean
+                  dependencyUpdate:
+                    description: DependencyUpdate indicates the Helm install/upgrade
+                      action to get missing dependencies.
+                    type: boolean
+                  disableHooks:
+                    description: DisableHooks prevents hooks from running during the
+                      Helm install action.
+                    type: boolean
+                  disableOpenAPIValidation:
+                    description: DisableOpenAPIValidation controls whether OpenAPI
+                      validation is enforced.
+                    type: boolean
+                  enableClientCache:
+                    default: false
+                    description: EnableClientCache is a flag to enable Helm client
+                      cache. If it is not specified, it will be set to true.
+                    type: boolean
+                  install:
+                    description: |-
+                      Install represents CLI flags passed to Helm install operation which can be used to control
+                      behaviour of helm Install operations via options like wait, skipCrds, timeout, waitForJobs, etc.
+                    properties:
+                      createNamespace:
+                        default: true
+                        description: |-
+                          CreateNamespace indicates the Helm install/upgrade action to create the
+                          HelmChartProxySpec.ReleaseNamespace if it does not exist yet.
+                          On uninstall, the namespace will not be garbage collected.
+                          If it is not specified by user, will be set to default 'true'.
+                        type: boolean
+                      includeCRDs:
+                        description: IncludeCRDs determines whether CRDs stored as
+                          a part of helm templates directory should be installed.
+                        type: boolean
+                    type: object
+                  options:
+                    description: SubNotes determines whether sub-notes should be rendered
+                      in the chart.
+                    type: boolean
+                  skipCRDs:
+                    description: |-
+                      SkipCRDs controls whether CRDs should be installed during install/upgrade operation.
+                      By default, CRDs are installed if not already present.
+                      If set, no CRDs will be installed.
+                    type: boolean
+                  takeOwnership:
+                    description: TakeOwnership represents CLI --take-ownership flag
+                      passed to Helm upgrade or install operation. If set, install
+                      will ignore the check for helm annotations and take ownership
+                      of the existing resources
+                    type: boolean
+                  timeout:
+                    description: |-
+                      Timeout is the time to wait for any individual Kubernetes operation (like
+                      resource creation, Jobs for hooks, etc.) during the performance of a Helm install action.
+                      Defaults to '10 min'.
+                    type: string
+                  uninstall:
+                    description: |-
+                      Uninstall represents CLI flags passed to Helm uninstall operation which can be used to control
+                      behaviour of helm Uninstall operation via options like wait, timeout, etc.
+                    properties:
+                      description:
+                        description: Description represents human readable information
+                          to be shown on release uninstall.
+                        type: string
+                      keepHistory:
+                        description: |-
+                          KeepHistory defines whether historical revisions of a release should be saved.
+                          If it's set, helm uninstall operation will not delete the history of the release.
+                          The helm storage backend (secret, configmap, etc) will be retained in the cluster.
+                        type: boolean
+                    type: object
+                  upgrade:
+                    description: |-
+                      Upgrade represents CLI flags passed to Helm upgrade operation which can be used to control
+                      behaviour of helm Upgrade operations via options like wait, skipCrds, timeout, waitForJobs, etc.
+                    properties:
+                      cleanupOnFail:
+                        description: CleanupOnFail indicates the upgrade action to
+                          delete newly-created resources on a failed update operation.
+                        type: boolean
+                      force:
+                        description: |-
+                          Force indicates to ignore certain warnings and perform the helm release upgrade anyway.
+                          This should be used with caution.
+                        type: boolean
+                      maxHistory:
+                        default: 10
+                        description: MaxHistory limits the maximum number of revisions
+                          saved per release (default is 10).
+                        type: integer
+                      recreate:
+                        description: Recreate will (if true) recreate pods after a
+                          rollback.
+                        type: boolean
+                      resetThenReuseValues:
+                        description: ResetThenReuseValues will reset the values to
+                          the chart's built-ins then merge with user's last supplied
+                          values.
+                        type: boolean
+                      resetValues:
+                        description: ResetValues will reset the values to the chart's
+                          built-ins rather than merging with existing.
+                        type: boolean
+                      reuseValues:
+                        description: ReuseValues will re-use the user's last supplied
+                          values.
+                        type: boolean
+                    type: object
+                  wait:
+                    description: Wait enables the waiting for resources to be ready
+                      after a Helm install/upgrade has been performed.
+                    type: boolean
+                  waitForJobs:
+                    description: WaitForJobs enables waiting for jobs to complete
+                      after a Helm install/upgrade has been performed.
+                    type: boolean
+                type: object
+              reconcileStrategy:
+                description: |-
+                  ReconcileStrategy indicates whether a Helm chart should be continuously installed, updated, and uninstalled on selected Clusters,
+                  or if it should be reconciled until it is successfully installed on selected Clusters and not otherwise updated or uninstalled.
+                  If not specified, the default behavior will be to reconcile continuously. This field is immutable.
+                  Possible values are `Continuous`, `InstallOnce`, or unset.
+                enum:
+                - ""
+                - InstallOnce
+                - Continuous
+                type: string
+              releaseName:
+                description: ReleaseName is the release name of the installed Helm
+                  chart. If it is not specified, a name will be generated.
+                type: string
+              repoURL:
+                description: |-
+                  RepoURL is the URL of the Helm chart repository.
+                  e.g. chart-path oci://repo-url/chart-name as repoURL: oci://repo-url and https://repo-url/chart-name as repoURL: https://repo-url
+                type: string
+              tlsConfig:
+                description: TLSConfig contains the TLS configuration for a HelmChartProxy.
+                properties:
+                  caSecret:
+                    description: Secret is a reference to a Secret containing the
+                      TLS CA certificate at the key ca.crt.
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  insecureSkipTLSVerify:
+                    description: InsecureSkipTLSVerify controls whether the Helm client
+                      should verify the server's certificate.
+                    type: boolean
+                type: object
+              valuesTemplate:
+                description: |-
+                  ValuesTemplate is an inline YAML representing the values for the Helm chart. This YAML supports Go templating to reference
+                  fields from each selected workload Cluster and programatically create and set values.
+                type: string
+              version:
+                description: |-
+                  Version is the version of the Helm chart. If it is not specified, the chart will use
+                  and be kept up to date with the latest version.
+                type: string
+            required:
+            - chartName
+            - clusterSelector
+            - repoURL
+            type: object
+          status:
+            description: HelmChartProxyStatus defines the observed state of HelmChartProxy.
+            properties:
+              conditions:
+                description: Conditions defines current state of the HelmChartProxy.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              matchingClusters:
+                description: MatchingClusters is the list of references to Clusters
+                  selected by the ClusterSelector.
+                items:
+                  description: ObjectReference contains enough information to let
+                    you inspect or modify the referred object.
+                  properties:
+                    apiVersion:
+                      description: API version of the referent.
+                      type: string
+                    fieldPath:
+                      description: |-
+                        If referring to a piece of an object instead of an entire object, this string
+                        should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                        For example, if the object reference is to a container within a pod, this would take on a value like:
+                        "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                        the event) or if no container name is specified "spec.containers[2]" (container with
+                        index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                        referencing a part of an object.
+                      type: string
+                    kind:
+                      description: |-
+                        Kind of the referent.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                      type: string
+                    name:
+                      description: |-
+                        Name of the referent.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      type: string
+                    namespace:
+                      description: |-
+                        Namespace of the referent.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                      type: string
+                    resourceVersion:
+                      description: |-
+                        Specific resourceVersion to which this reference is made, if any.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                      type: string
+                    uid:
+                      description: |-
+                        UID of the referent.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
+              observedGeneration:
+                description: ObservedGeneration is the latest generation observed
+                  by the controller.
+                format: int64
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: caaph-system/caaph-serving-cert
+    controller-gen.kubebuilder.io/version: v0.20.0
+  labels:
+    cluster.x-k8s.io/provider: helm
+    visualizer.cluster.x-k8s.io: ""
+  name: helmreleaseproxies.addons.cluster.x-k8s.io
+spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: caaph-webhook-service
+          namespace: caaph-system
+          path: /convert
+      conversionReviewVersions:
+      - v1
+  group: addons.cluster.x-k8s.io
+  names:
+    kind: HelmReleaseProxy
+    listKind: HelmReleaseProxyList
+    plural: helmreleaseproxies
+    shortNames:
+    - hrp
+    singular: helmreleaseproxy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Cluster to which this HelmReleaseProxy belongs
+      jsonPath: .spec.clusterRef.name
+      name: Cluster
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].reason
+      name: Reason
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].message
+      name: Message
+      priority: 1
+      type: string
+    - jsonPath: .status.status
+      name: Status
+      type: string
+    - jsonPath: .status.revision
+      name: Revision
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HelmReleaseProxy is the Schema for the helmreleaseproxies API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: HelmReleaseProxySpec defines the desired state of HelmReleaseProxy.
+            properties:
+              chartName:
+                description: |-
+                  ChartName is the name of the Helm chart in the repository.
+                  e.g. chart-path oci://repo-url/chart-name as chartName: chart-name and https://repo-url/chart-name as chartName: chart-name
+                type: string
+              clusterRef:
+                description: ClusterRef is a reference to the Cluster to install the
+                  Helm release on.
+                properties:
+                  apiVersion:
+                    description: API version of the referent.
+                    type: string
+                  fieldPath:
+                    description: |-
+                      If referring to a piece of an object instead of an entire object, this string
+                      should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within a pod, this would take on a value like:
+                      "spec.containers{name}" (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]" (container with
+                      index 2 in this pod). This syntax is chosen only to have some well-defined way of
+                      referencing a part of an object.
+                    type: string
+                  kind:
+                    description: |-
+                      Kind of the referent.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                    type: string
+                  name:
+                    description: |-
+                      Name of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                    type: string
+                  resourceVersion:
+                    description: |-
+                      Specific resourceVersion to which this reference is made, if any.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+                    type: string
+                  uid:
+                    description: |-
+                      UID of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              credentials:
+                description: Credentials is a reference to an object containing the
+                  OCI credentials. If it is not specified, no credentials will be
+                  used.
+                properties:
+                  key:
+                    description: Key is the key in the Secret containing the OCI credentials.
+                    type: string
+                  secret:
+                    description: Secret is a reference to a Secret containing the
+                      OCI credentials.
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                required:
+                - key
+                - secret
+                type: object
+              namespace:
+                description: |-
+                  ReleaseNamespace is the namespace the Helm release will be installed on the referenced
+                  Cluster. If it is not specified, it will be set to the default namespace.
+                type: string
+              options:
+                description: |-
+                  Options represents the helm setting options which can be used to control behaviour of helm operations(Install, Upgrade, Delete, etc)
+                  via options like wait, skipCrds, timeout, waitForJobs, etc.
+                properties:
+                  atomic:
+                    description: |-
+                      Atomic indicates the installation/upgrade process to delete the installation or rollback on failure.
+                      If 'Atomic' is set, wait will be enabled automatically during helm install/upgrade operation.
+                    type: boolean
+                  dependencyUpdate:
+                    description: DependencyUpdate indicates the Helm install/upgrade
+                      action to get missing dependencies.
+                    type: boolean
+                  disableHooks:
+                    description: DisableHooks prevents hooks from running during the
+                      Helm install action.
+                    type: boolean
+                  disableOpenAPIValidation:
+                    description: DisableOpenAPIValidation controls whether OpenAPI
+                      validation is enforced.
+                    type: boolean
+                  enableClientCache:
+                    default: false
+                    description: EnableClientCache is a flag to enable Helm client
+                      cache. If it is not specified, it will be set to true.
+                    type: boolean
+                  install:
+                    description: |-
+                      Install represents CLI flags passed to Helm install operation which can be used to control
+                      behaviour of helm Install operations via options like wait, skipCrds, timeout, waitForJobs, etc.
+                    properties:
+                      createNamespace:
+                        default: true
+                        description: |-
+                          CreateNamespace indicates the Helm install/upgrade action to create the
+                          HelmChartProxySpec.ReleaseNamespace if it does not exist yet.
+                          On uninstall, the namespace will not be garbage collected.
+                          If it is not specified by user, will be set to default 'true'.
+                        type: boolean
+                      includeCRDs:
+                        description: IncludeCRDs determines whether CRDs stored as
+                          a part of helm templates directory should be installed.
+                        type: boolean
+                    type: object
+                  options:
+                    description: SubNotes determines whether sub-notes should be rendered
+                      in the chart.
+                    type: boolean
+                  skipCRDs:
+                    description: |-
+                      SkipCRDs controls whether CRDs should be installed during install/upgrade operation.
+                      By default, CRDs are installed if not already present.
+                      If set, no CRDs will be installed.
+                    type: boolean
+                  takeOwnership:
+                    description: TakeOwnership represents CLI --take-ownership flag
+                      passed to Helm upgrade or install operation. If set, install
+                      will ignore the check for helm annotations and take ownership
+                      of the existing resources
+                    type: boolean
+                  timeout:
+                    description: |-
+                      Timeout is the time to wait for any individual Kubernetes operation (like
+                      resource creation, Jobs for hooks, etc.) during the performance of a Helm install action.
+                      Defaults to '10 min'.
+                    type: string
+                  uninstall:
+                    description: |-
+                      Uninstall represents CLI flags passed to Helm uninstall operation which can be used to control
+                      behaviour of helm Uninstall operation via options like wait, timeout, etc.
+                    properties:
+                      description:
+                        description: Description represents human readable information
+                          to be shown on release uninstall.
+                        type: string
+                      keepHistory:
+                        description: |-
+                          KeepHistory defines whether historical revisions of a release should be saved.
+                          If it's set, helm uninstall operation will not delete the history of the release.
+                          The helm storage backend (secret, configmap, etc) will be retained in the cluster.
+                        type: boolean
+                    type: object
+                  upgrade:
+                    description: |-
+                      Upgrade represents CLI flags passed to Helm upgrade operation which can be used to control
+                      behaviour of helm Upgrade operations via options like wait, skipCrds, timeout, waitForJobs, etc.
+                    properties:
+                      cleanupOnFail:
+                        description: CleanupOnFail indicates the upgrade action to
+                          delete newly-created resources on a failed update operation.
+                        type: boolean
+                      force:
+                        description: |-
+                          Force indicates to ignore certain warnings and perform the helm release upgrade anyway.
+                          This should be used with caution.
+                        type: boolean
+                      maxHistory:
+                        default: 10
+                        description: MaxHistory limits the maximum number of revisions
+                          saved per release (default is 10).
+                        type: integer
+                      recreate:
+                        description: Recreate will (if true) recreate pods after a
+                          rollback.
+                        type: boolean
+                      resetThenReuseValues:
+                        description: ResetThenReuseValues will reset the values to
+                          the chart's built-ins then merge with user's last supplied
+                          values.
+                        type: boolean
+                      resetValues:
+                        description: ResetValues will reset the values to the chart's
+                          built-ins rather than merging with existing.
+                        type: boolean
+                      reuseValues:
+                        description: ReuseValues will re-use the user's last supplied
+                          values.
+                        type: boolean
+                    type: object
+                  wait:
+                    description: Wait enables the waiting for resources to be ready
+                      after a Helm install/upgrade has been performed.
+                    type: boolean
+                  waitForJobs:
+                    description: WaitForJobs enables waiting for jobs to complete
+                      after a Helm install/upgrade has been performed.
+                    type: boolean
+                type: object
+              reconcileStrategy:
+                description: |-
+                  ReconcileStrategy indicates whether a Helm chart should be continuously installed, updated, and uninstalled on the Cluster,
+                  or if it should be reconciled until it is successfully installed on the Cluster and not otherwise updated or uninstalled.
+                  If not specified, the default behavior will be to reconcile continuously. This field is immutable.
+                  Possible values are `Continuous`, `InstallOnce`, or unset.
+                enum:
+                - ""
+                - InstallOnce
+                - Continuous
+                type: string
+              releaseName:
+                description: ReleaseName is the release name of the installed Helm
+                  chart. If it is not specified, a name will be generated.
+                type: string
+              repoURL:
+                description: |-
+                  RepoURL is the URL of the Helm chart repository.
+                  e.g. chart-path oci://repo-url/chart-name as repoURL: oci://repo-url and https://repo-url/chart-name as repoURL: https://repo-url
+                type: string
+              tlsConfig:
+                description: TLSConfig contains the TLS configuration for the HelmReleaseProxy.
+                properties:
+                  caSecret:
+                    description: Secret is a reference to a Secret containing the
+                      TLS CA certificate at the key ca.crt.
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  insecureSkipTLSVerify:
+                    description: InsecureSkipTLSVerify controls whether the Helm client
+                      should verify the server's certificate.
+                    type: boolean
+                type: object
+              values:
+                description: |-
+                  Values is an inline YAML representing the values for the Helm chart. This YAML is the result of the rendered
+                  Go templating with the values from the referenced workload Cluster.
+                type: string
+              version:
+                description: |-
+                  Version is the version of the Helm chart. If it is not specified, the chart will use
+                  and be kept up to date with the latest version.
+                type: string
+            required:
+            - chartName
+            - clusterRef
+            - repoURL
+            type: object
+          status:
+            description: HelmReleaseProxyStatus defines the observed state of HelmReleaseProxy.
+            properties:
+              conditions:
+                description: Conditions defines current state of the HelmReleaseProxy.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: ObservedGeneration is the latest generation observed
+                  by the controller.
+                format: int64
+                type: integer
+              revision:
+                description: Revision is the current revision of the Helm release.
+                type: integer
+              status:
+                description: Status is the current status of the Helm release.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-controller-manager
+  namespace: caaph-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-leader-election-role
+  namespace: caaph-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - addons.cluster.x-k8s.io
+  resources:
+  - helmchartproxies
+  - helmreleaseproxies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - addons.cluster.x-k8s.io
+  resources:
+  - helmchartproxies/finalizers
+  - helmreleaseproxies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - addons.cluster.x-k8s.io
+  resources:
+  - helmchartproxies/status
+  - helmreleaseproxies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
+  - bootstrap.cluster.x-k8s.io
+  - clusterctl.cluster.x-k8s.io
+  - controlplane.cluster.x-k8s.io
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - clusters
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - controlplane.cluster.x-k8s.io
+  resources:
+  - kubeadmcontrolplanes
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-metrics-auth-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-leader-election-rolebinding
+  namespace: caaph-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: caaph-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: caaph-controller-manager
+  namespace: caaph-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: caaph-manager-role
+subjects:
+- kind: ServiceAccount
+  name: caaph-controller-manager
+  namespace: caaph-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-metrics-auth-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: caaph-metrics-auth-role
+subjects:
+- kind: ServiceAccount
+  name: caaph-controller-manager
+  namespace: caaph-system
+---
+apiVersion: v1
+data:
+  controller_manager_config.yaml: |
+    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
+    kind: ControllerManagerConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: :8443
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: 5a2dee3e.cluster.x-k8s.io
+kind: ConfigMap
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-manager-config
+  namespace: caaph-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+    control-plane: controller-manager
+  name: caaph-controller-manager-metrics-service
+  namespace: caaph-system
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    cluster.x-k8s.io/provider: helm
+    control-plane: controller-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-webhook-service
+  namespace: caaph-system
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    cluster.x-k8s.io/provider: helm
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+    control-plane: controller-manager
+  name: caaph-controller-manager
+  namespace: caaph-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/provider: helm
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        cluster.x-k8s.io/provider: helm
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --leader-elect
+        - --diagnostics-address=${CAAPH_DIAGNOSTICS_ADDRESS:=:8443}
+        - --insecure-diagnostics=${CAAPH_INSECURE_DIAGNOSTICS:=false}
+        - --sync-period=${CAAPH_SYNC_PERIOD:=10m}
+        - --v=2
+        env:
+        - name: XDG_DATA_HOME
+          value: /tmp/xdg/.data
+        - name: XDG_CONFIG_HOME
+          value: /tmp/xdg/.config
+        - name: XDG_STATE_HOME
+          value: /tmp/xdg/.state
+        - name: XDG_CACHE_HOME
+          value: /tmp/xdg/.cache
+        - name: XDG_CONFIG_DIRS
+          value: /tmp/xdg
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
+        image: registry.k8s.io/cluster-api-helm/cluster-api-helm-controller:v0.6.4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 65532
+          runAsUser: 65532
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+        - mountPath: /tmp
+          name: tmp
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: caaph-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert
+      - emptyDir: {}
+        name: tmp
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-serving-cert
+  namespace: caaph-system
+spec:
+  dnsNames:
+  - caaph-webhook-service.caaph-system.svc
+  - caaph-webhook-service.caaph-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: caaph-selfsigned-issuer
+  secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-selfsigned-issuer
+  namespace: caaph-system
+spec:
+  selfSigned: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: caaph-system/caaph-serving-cert
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: caaph-webhook-service
+      namespace: caaph-system
+      path: /mutate-addons-cluster-x-k8s-io-v1alpha1-helmchartproxy
+  failurePolicy: Fail
+  name: helmchartproxy.kb.io
+  rules:
+  - apiGroups:
+    - addons.cluster.x-k8s.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - helmchartproxies
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: caaph-webhook-service
+      namespace: caaph-system
+      path: /mutate-addons-cluster-x-k8s-io-v1alpha1-helmreleaseproxy
+  failurePolicy: Fail
+  name: helmreleaseproxy.kb.io
+  rules:
+  - apiGroups:
+    - addons.cluster.x-k8s.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - helmreleaseproxies
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: caaph-system/caaph-serving-cert
+  labels:
+    cluster.x-k8s.io/provider: helm
+  name: caaph-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: caaph-webhook-service
+      namespace: caaph-system
+      path: /validate-addons-cluster-x-k8s-io-v1alpha1-helmchartproxy
+  failurePolicy: Fail
+  name: vhelmchartproxy.kb.io
+  rules:
+  - apiGroups:
+    - addons.cluster.x-k8s.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - helmchartproxies
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: caaph-webhook-service
+      namespace: caaph-system
+      path: /validate-addons-cluster-x-k8s-io-v1alpha1-helmreleaseproxy
+  failurePolicy: Fail
+  name: vhelmreleaseproxy.kb.io
+  rules:
+  - apiGroups:
+    - addons.cluster.x-k8s.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - helmreleaseproxies
+  sideEffects: None

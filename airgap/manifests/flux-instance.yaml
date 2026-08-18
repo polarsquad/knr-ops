@@ -1,0 +1,54 @@
+# FluxInstance for the airgapped management cluster.
+# Differences from the connected bootstrap (bootstrap.sh, local-host profile):
+#   - spec.distribution.artifact is OMITTED: the flux-operator then uses its
+#     embedded distribution manifests instead of fetching
+#     oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests at runtime
+#     (that fetch would fail offline, and the Zarf agent cannot rewrite an
+#     outbound pull).
+#   - spec.distribution.registry stays ghcr.io/fluxcd: the controller pods the
+#     operator generates are rewritten to the Zarf internal registry by the
+#     Zarf agent at admission time (the image-rewrite linchpin).
+#   - spec.sync.url points at the Zarf internal registry's in-cluster service
+#     DNS name (###ZARF_CONST_REGISTRY_INTERNAL###). The nodeport address
+#     (127.0.0.1:31999) only works from a node's loopback, not from pods.
+#   - spec.sync.pullSecret is Zarf's generated private-registry secret, which
+#     Zarf creates in flux-system and which covers the in-cluster DNS name.
+#   - the insecure patch is kept: the internal registry is plain HTTP.
+apiVersion: fluxcd.controlplane.io/v1
+kind: FluxInstance
+metadata:
+  name: flux
+  namespace: flux-system
+spec:
+  cluster:
+    domain: cluster.local
+    multitenant: false
+    multitenantWorkloadIdentity: false
+    networkPolicy: true
+    size: small
+    tenantDefaultServiceAccount: default
+    type: kubernetes
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+  distribution:
+    registry: ghcr.io/fluxcd
+    version: 2.x
+  sync:
+    interval: 1m
+    kind: OCIRepository
+    url: oci://###ZARF_CONST_REGISTRY_INTERNAL###/knr-ops-airgap
+    ref: latest
+    path: mgmt/local-host
+    pullSecret: private-registry
+  kustomize:
+    patches:
+      - target:
+          kind: OCIRepository
+        patch: |-
+          - op: add
+            path: /spec/insecure
+            value: true
+  wait: true
