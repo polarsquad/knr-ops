@@ -96,8 +96,9 @@ GitHub PAT so Flux can clone this repository; the local-host profile does not re
 GitHub or AWS credentials.
 
 `mise -E local-host run bootstrap` waits for both the management and workload
-Flux reconciliation chains and streams their progress. A successful bootstrap,
-followed by the Podinfo port-forward, verifies the end-to-end local-host flow.
+Flux reconciliation chains, streams management progress, and surfaces workload
+reconciliation errors. A successful bootstrap, followed by the Podinfo
+port-forward, verifies the end-to-end local-host flow.
 
 The local-host teardown deletes the CAPD workload cluster before deleting the
 `mgmt` kind cluster and local registry container. The default teardown path

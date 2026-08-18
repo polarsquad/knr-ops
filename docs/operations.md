@@ -165,9 +165,11 @@ The management cluster needs access to the container-engine socket, which
 
 Local-host bootstrap first streams the management Flux Kustomization status.
 After `flux-apps` becomes Ready, it connects to `local-workload`, streams the
-workload Flux controller reconciliation logs, and returns after the workload
-root Kustomization becomes Ready. Each readiness wait defaults to 15 minutes
-and can be changed with `LOCAL_RECONCILE_TIMEOUT`.
+workload Flux controller error logs, and returns after the workload root
+Kustomization becomes Ready. Filtering the workload stream to errors avoids
+showing normal startup retries and advisory messages as apparent failures. Each
+readiness wait defaults to 15 minutes and can be changed with
+`LOCAL_RECONCILE_TIMEOUT`.
 
 EKS clusters typically take 15–25 minutes to come up; node groups and the
 downstream app chain follow a few minutes after.

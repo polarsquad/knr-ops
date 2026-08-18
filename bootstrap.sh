@@ -336,7 +336,7 @@ if [ "$PROFILE" = local-host ]; then
   trap cleanup_registry_config EXIT
 
   echo ""
-  echo ">>> Workload cluster Flux reconciliation logs"
+  echo ">>> Workload cluster Flux reconciliation errors"
   workload_kubeconfig="$(mktemp)"
   workload_flux_log_pid=""
   cleanup_workload_reconciliation() {
@@ -378,6 +378,7 @@ if [ "$PROFILE" = local-host ]; then
     --kubeconfig "$workload_kubeconfig" \
     --all-namespaces \
     --follow \
+    --level=error \
     --since=10m &
   workload_flux_log_pid=$!
 
