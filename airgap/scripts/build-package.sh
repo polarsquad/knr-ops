@@ -24,6 +24,7 @@ echo "==> 2/4 config artifact"
 echo "==> 3/4 workload-node pod images + OCI charts"
 WORKLOAD_IMAGES=(
   registry.k8s.io/pause:3.10.1
+  docker.io/kindest/kindnetd:v20260528-9350166c
   ghcr.io/controlplaneio-fluxcd/flux-operator:v0.58.0
   ghcr.io/fluxcd/source-controller:v1.9.4
   ghcr.io/fluxcd/kustomize-controller:v1.9.4

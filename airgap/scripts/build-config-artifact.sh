@@ -164,21 +164,25 @@ spec:
       name: local-workload-flux-instance
 EOF
 
-# cluster-class.yaml: add preLoadImages to both DevMachineTemplates. The
-# control-plane / kindnet / coredns images are already pre-baked into
-# kindest/node, with ONE exception found by the offline run:
-# registry.k8s.io/pause:3.10 is baked but kubeadm v1.35.0 requires
-# pause:3.10.1, whose preflight pull fails offline (kubeadm init aborts, the
-# cluster never becomes Available). The flux controllers + podinfo are also
-# pre-loaded so the per-cluster Flux needs no internet. All entries are loaded
-# from the host Docker daemon (stage-and-create-cluster.sh loads
-# workload-pod-images.tar).
+# cluster-class.yaml: add preLoadImages to both DevMachineTemplates. Two
+# offline-only gaps found by Wi-Fi-off runs (connected runs mask them by
+# pulling silently):
+#   - registry.k8s.io/pause:3.10.1: the node bakes pause:3.10 but kubeadm
+#     v1.35.0 requires 3.10.1; the preflight pull fails offline and
+#     kubeadm init aborts (cluster never becomes Available).
+#   - docker.io/kindest/kindnetd:v20260528-9350166c: the vendored CNI pins
+#     this tag but the v1.35.0 node bakes v20251212; the CNI pull hangs
+#     offline so nodes never become Ready.
+# The flux controllers + podinfo are pre-loaded so the per-cluster Flux needs
+# no internet. All entries load from the host Docker daemon
+# (stage-and-create-cluster.sh loads workload-pod-images.tar).
 python3 - "$LH/clusters/docker/cluster-class.yaml" <<'PY'
 import sys
 path = sys.argv[1]
 txt = open(path).read()
 preload = """          preLoadImages:
             - registry.k8s.io/pause:3.10.1
+            - docker.io/kindest/kindnetd:v20260528-9350166c
             - ghcr.io/controlplaneio-fluxcd/flux-operator:v0.58.0
             - ghcr.io/fluxcd/source-controller:v1.9.4
             - ghcr.io/fluxcd/kustomize-controller:v1.9.4
