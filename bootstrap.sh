@@ -210,16 +210,8 @@ fi
 echo ">>> Installing Flux Operator..."
 ANONYMOUS_REGISTRY_CONFIG="$(mktemp)"
 printf '{}\n' > "$ANONYMOUS_REGISTRY_CONFIG"
-flux_watch_pid=""
 workload_flux_log_pid=""
 workload_kubeconfig=""
-cleanup_flux_watch() {
-  if [ -n "$flux_watch_pid" ]; then
-    kill "$flux_watch_pid" >/dev/null 2>&1 || true
-    wait "$flux_watch_pid" >/dev/null 2>&1 || true
-    flux_watch_pid=""
-  fi
-}
 cleanup_workload_reconciliation() {
   if [ -n "$workload_flux_log_pid" ]; then
     kill "$workload_flux_log_pid" >/dev/null 2>&1 || true
@@ -232,7 +224,6 @@ cleanup_workload_reconciliation() {
   fi
 }
 cleanup_bootstrap() {
-  cleanup_flux_watch
   cleanup_workload_reconciliation
   rm -f "$ANONYMOUS_REGISTRY_CONFIG"
 }
@@ -338,9 +329,7 @@ if [ "$PROFILE" = local-host ]; then
     sleep 2
   done
 
-  echo ">>> Watching until the local workload cluster and Flux addons are ready..."
-  flux get kustomizations --watch --timeout="$LOCAL_RECONCILE_TIMEOUT" &
-  flux_watch_pid=$!
+  echo ">>> Waiting until the local workload cluster and Flux addons are ready..."
 
   if ! kubectl wait kustomization/flux-apps \
       --namespace flux-system \
@@ -350,8 +339,6 @@ if [ "$PROFILE" = local-host ]; then
     flux get kustomizations
     exit 1
   fi
-  cleanup_flux_watch
-
   echo ""
   echo ">>> Workload cluster Flux reconciliation errors"
   workload_kubeconfig="$(mktemp)"
