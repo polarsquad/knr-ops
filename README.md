@@ -21,8 +21,9 @@ repository:
   and read-only IAM roles) running on each workload cluster
 
 After the one-time bootstrap, **everything is declared in Git as YAML**.
-1 CAPI cluster creates: 2 clusters, 4 node pools, 2 regions, 2 S3 buckets,
-2 RDS instances, 1 user, 1 role. 0 HCL, 0 state files.
+The AWS profile declares 2 CAPI workload clusters: 4 node pools across
+2 regions, 2 S3 buckets, 2 RDS instances, 1 reader user, and one reader role
+per workload cluster. 0 HCL, 0 state files.
 
 ![knr-ops architecture](docs/knr-ops-architecture.svg)
 
@@ -51,16 +52,18 @@ not a developer self-service portal; you are the consumer.
 ## Prerequisites
 
 - Mise
-- GitHub personal access token (PAT) with read access to this repo for the AWS
-  profile
-- AWS credentials and quotas established for the AWS profile
+- A running Docker engine, or Podman 5.5+, for kind; the local-host profile
+  also uses it for its local OCI registry
+- AWS profile only: GitHub personal access token (PAT) with read access to this
+  repo
+- AWS profile only: AWS credentials and quotas established for the profile
 
 ## Quickstart
 
 ```sh
 mise trust                  # to enable mise in this repository
 mise install                # installs tools pinned in mise.toml (kubectl, kind, flux, ...)
-cp .env.example .env        # AWS profile: fill in GitHub PAT and AWS settings
+cp .env.example .env        # AWS profile only: fill in GitHub PAT and AWS settings
 mise run sops-keygen        # first time only: age key for SOPS
 mise run bootstrap          # kind cluster + Flux; everything else is GitOps
 flux get kustomizations --watch
@@ -120,8 +123,10 @@ suspends Flux and removes the AWS-managed infrastructure.
 ## Repository layout
 
 ```
+├── airgap/                       Zarf air-gap package, image inventory, scripts
 ├── bootstrap.sh / teardown.sh     One-time imperative bootstrap / full teardown
 ├── docs/                          Detailed documentation (see table above)
+├── mise.toml / mise.*.toml        Pinned toolchain and AWS/local-host tasks
 ├── mgmt/aws/                     Synced by the MANAGEMENT cluster's Flux
 │   ├── infrastructure/            cert-manager, CAPI operator, CAPA identity,
 │   │                              ACK controllers, pod-identity roles,
@@ -137,6 +142,7 @@ suspends Flux and removes the AWS-managed infrastructure.
 └── workload/                          Synced by each WORKLOAD cluster's Flux
     ├── base/                      ACK S3/RDS/IAM controllers, Bucket CRs,
     │                              DBInstance CRs, reader Role CRs
+    ├── local-host/                OCI-synced Podinfo workload overlay
     ├── eu-north-01/               Per-cluster overlay (sync target)
     └── eu-west-01/                Per-cluster overlay (sync target)
 ```
