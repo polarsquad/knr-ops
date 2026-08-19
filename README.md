@@ -1,7 +1,7 @@
 # knr-ops
 ## kubernetes-native resource operations
 
-![knr-ops logo](docs/knr-ops-logo.png)
+![knr-ops logo](docs/knr-ops-logo.svg)
 
 A GitOps pattern for managing cloud infrastructure through the Kubernetes API:
 no Terraform, no DSLs, no state files, no second toolchain. This repository is
