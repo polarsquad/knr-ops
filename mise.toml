@@ -9,12 +9,11 @@ sops = "latest"
 age = "latest"
 
 # Zarf CLI (airgap prototype). The mise github backend downloads the raw
-# release asset and keeps its original filename, so we pin the exact asset
-# and use `bin` to name the binary `zarf`. asset_pattern is Darwin/arm64
-# (this prototype targets the local arm64 host; adjust for other platforms).
+# release asset and keeps its original filename, so we select the native
+# Linux/macOS arm64 asset and use `bin` to name the binary `zarf`.
 [tools."github:zarf-dev/zarf"]
 version = "v0.83.0"
-asset_pattern = "zarf_v0.83.0_Darwin_arm64"
+asset_pattern = 'zarf_v{{ version }}_{{ os(linux="Linux", macos="Darwin") }}_{{ arch() }}'
 bin = "zarf"
 
 [settings]

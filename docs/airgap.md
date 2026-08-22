@@ -14,13 +14,10 @@ re-verify.
 
 ## Prerequisites
 
-The kit is single-architecture (arm64), including the pinned Zarf CLI: the
-mise pin in `mise.toml` (`asset_pattern = "zarf_v0.83.0_Darwin_arm64"`)
-resolves only on macOS/arm64, so `mise install` fails on other platforms
-with a confusing asset-not-found error. On Linux, adjust the pin to the
-matching `Linux_*` release asset first. Docker and kind are also required
-on the deploy host (the prototype keeps kind as the management-cluster
-substrate; see Known limitations).
+The kit is single-architecture (arm64), including the pinned Zarf CLI. The
+mise pin in `mise.toml` selects the matching Linux or macOS arm64 release
+asset. Docker and kind are also required on the deploy host (the prototype
+keeps kind as the management-cluster substrate; see Known limitations).
 
 ## Architecture
 
