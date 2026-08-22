@@ -118,7 +118,7 @@ suspends Flux and removes the AWS-managed infrastructure.
 | [docs/secrets.md](docs/secrets.md) | SOPS + age secret management, key setup, credential rotation |
 | [docs/operations.md](docs/operations.md) | Prerequisites, AWS service quotas, configuration, bootstrap, verification, teardown, validation |
 | [docs/extending.md](docs/extending.md) | Adding a workload cluster, adding apps to the workload clusters, adding other providers (Azure, Talos, k0smotron) |
-| [docs/airgap.md](docs/airgap.md) | Zarf air-gap kit: package build, offline deploy, verification checklist, update drill |
+| [docs/airgap.md](docs/airgap.md) | Zarf air-gap bundle: workflow-bootstrapped local OCI registry, package build, offline deploy, verification checklist, update drill |
 
 ## Repository layout
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# offline-run.sh — autonomous Wi-Fi-off validation of the knr-ops airgap kit.
+# offline-run.sh — autonomous Wi-Fi-off validation of the knr-ops airgap bundle.
 #
 # This script is designed to run with NO operator and NO LLM/agent attached:
 # it waits until the internet is unreachable, runs the full deploy, verifies,
@@ -18,14 +18,18 @@ LOG=/tmp/airgap-offline-run.log
 SUMMARY=/tmp/airgap-offline-summary.txt
 AIRGAP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ARCHIVES="$AIRGAP_DIR/archives"
+PACKAGE_INPUT="${1:-$ARCHIVES/zarf-package-knr-ops-airgap-arm64-0.1.0.tar.zst}"
+PACKAGE_DIR=$(cd "$(dirname "$PACKAGE_INPUT")" && pwd)
+PACKAGE="$PACKAGE_DIR/$(basename "$PACKAGE_INPUT")"
 
-# Direct binary paths (offline-safe; no mise/network resolution).
-ZARF="$HOME/.local/share/mise/installs/github-zarf-dev-zarf/v0.83.0/zarf"
-FLUX=/opt/homebrew/bin/flux
-HELM=/opt/homebrew/bin/helm
-KIND=/opt/homebrew/bin/kind
-KUBECTL=/usr/local/bin/kubectl
-DOCKER=/usr/local/bin/docker
+# Resolve the already-installed tools before going offline. This supports both
+# the macOS operator workflow and Linux CI without invoking mise in the gap.
+ZARF=$(command -v zarf)
+FLUX=$(command -v flux)
+HELM=$(command -v helm)
+KIND=$(command -v kind)
+KUBECTL=$(command -v kubectl)
+DOCKER=$(command -v docker)
 export KUBECONFIG="$HOME/.kube/config"
 
 export CLUSTER_NAME=airgap-mgmt
@@ -41,20 +45,24 @@ fail() { echo "FAIL: $*" | tee -a "$SUMMARY"; }
 : > "$SUMMARY"
 {
 step "0. waiting for Wi-Fi to go OFF (internet unreachable)..."
-online_deadline=$(( $(date +%s) + ${OFFLINE_WAIT_SECONDS:-900} ))
-while true; do
-  if ! curl -s --max-time 3 https://ghcr.io >/dev/null 2>&1 && \
-     ! curl -s --max-time 3 https://registry.k8s.io >/dev/null 2>&1; then
-    echo "internet unreachable -> OFFLINE confirmed"
-    break
-  fi
-  if [ "$(date +%s)" -ge "$online_deadline" ]; then
-    echo "TIMEOUT waiting for Wi-Fi off; aborting."
-    fail "never went offline within ${OFFLINE_WAIT_SECONDS:-900}s"
-    exit 1
-  fi
-  sleep 5
-done
+if [ "${SKIP_OFFLINE_CHECK:-0}" = "1" ]; then
+  echo "offline connectivity check skipped; external traffic is monitored by the caller"
+else
+  online_deadline=$(( $(date +%s) + ${OFFLINE_WAIT_SECONDS:-900} ))
+  while true; do
+    if ! curl -s --max-time 3 https://ghcr.io >/dev/null 2>&1 && \
+       ! curl -s --max-time 3 https://registry.k8s.io >/dev/null 2>&1; then
+      echo "internet unreachable -> OFFLINE confirmed"
+      break
+    fi
+    if [ "$(date +%s)" -ge "$online_deadline" ]; then
+      echo "TIMEOUT waiting for Wi-Fi off; aborting."
+      fail "never went offline within ${OFFLINE_WAIT_SECONDS:-900}s"
+      exit 1
+    fi
+    sleep 5
+  done
+fi
 
 step "1. stage: docker load + kind create + seed registry"
 if CLUSTER_NAME=$CLUSTER_NAME REGISTRY_NAME=$REGISTRY_NAME REGISTRY_PORT=$REGISTRY_PORT \
@@ -62,6 +70,7 @@ if CLUSTER_NAME=$CLUSTER_NAME REGISTRY_NAME=$REGISTRY_NAME REGISTRY_PORT=$REGIST
   pass "stage (docker load, kind create, registry seed)"
 else
   fail "stage-and-create-cluster.sh"
+  exit 1
 fi
 
 step "2. zarf init"
@@ -70,13 +79,15 @@ if ( cd "$AIRGAP_DIR" && "$ZARF" init "$ARCHIVES/zarf-init-arm64-v0.83.0.tar.zst
   pass "zarf init"
 else
   fail "zarf init"
+  exit 1
 fi
 
 step "3. zarf package deploy"
-if ( cd "$AIRGAP_DIR" && "$ZARF" package deploy "$ARCHIVES/zarf-package-knr-ops-airgap-arm64-0.1.0.tar.zst" --confirm ); then
+if ( cd "$AIRGAP_DIR" && "$ZARF" package deploy "$PACKAGE" --confirm ); then
   pass "zarf package deploy"
 else
   fail "zarf package deploy"
+  exit 1
 fi
 
 step "4. verify mgmt substrate (all non-baked images from 127.0.0.1:31999)"
@@ -156,4 +167,4 @@ else
   cat "$SUMMARY"
   exit 0
 fi
-} > "$LOG" 2>&1
+} 2>&1 | tee "$LOG"

@@ -20,7 +20,8 @@ cd "$REPO_ROOT"
 REGISTRY_PORT="${REGISTRY_PORT:-5001}"
 OCI_REPOSITORY="${OCI_REPOSITORY:-knr-ops-airgap}"
 OCI_TAG="${OCI_TAG:-latest}"
-OCI_URL="oci://localhost:${REGISTRY_PORT}/${OCI_REPOSITORY}:${OCI_TAG}"
+OCI_REGISTRY="${OCI_REGISTRY:-localhost:${REGISTRY_PORT}}"
+OCI_URL="oci://${OCI_REGISTRY}/${OCI_REPOSITORY}:${OCI_TAG}"
 
 ARTIFACT_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/knr-ops-airgap-oci.XXXXXX")
 cleanup() { rm -rf "$ARTIFACT_ROOT"; }
@@ -226,7 +227,8 @@ PY
 if [ -n "${WORKLOAD_REGISTRY_HOST:-}" ] && [ "$WORKLOAD_REGISTRY_HOST" != "knr-registry" ]; then
   echo "==> Rewriting workload registry references to '${WORKLOAD_REGISTRY_HOST}'"
   grep -rl "knr-registry" "$ARTIFACT_ROOT" | while IFS= read -r f; do
-    sed -i '' "s/knr-registry/${WORKLOAD_REGISTRY_HOST}/g" "$f"
+    sed -i.bak "s|knr-registry|${WORKLOAD_REGISTRY_HOST}|g" "$f"
+    rm -f "${f}.bak"
   done
 fi
 
@@ -301,7 +303,8 @@ EOF
 if [ -n "${AIRGAP_CLUSTER_NAME:-}" ]; then
   echo "==> Renaming workload cluster to '${AIRGAP_CLUSTER_NAME}' in the artifact copy"
   grep -rl "local-workload" "$LH" | while IFS= read -r f; do
-    sed -i '' "s/local-workload/${AIRGAP_CLUSTER_NAME}/g" "$f"
+    sed -i.bak "s|local-workload|${AIRGAP_CLUSTER_NAME}|g" "$f"
+    rm -f "${f}.bak"
   done
 fi
 
@@ -312,18 +315,26 @@ SOURCE_URL=$(git config --get remote.origin.url || true)
 SOURCE_URL="${SOURCE_URL:-file://${REPO_ROOT}}"
 
 echo "==> Pushing airgap config artifact ${OCI_URL}"
-flux push artifact "$OCI_URL" \
-  --path="$ARTIFACT_ROOT" \
-  --source="$SOURCE_URL" \
-  --revision="${GIT_REF}@sha1:${GIT_SHA}" \
-  --insecure-registry \
+PUSH_ARGS=(
+  "$OCI_URL"
+  --path="$ARTIFACT_ROOT"
+  --source="$SOURCE_URL"
+  --revision="${GIT_REF}@sha1:${GIT_SHA}"
   --reproducible
+)
+if [[ "$OCI_REGISTRY" == localhost:* ]]; then
+  PUSH_ARGS+=(--insecure-registry)
+fi
+if [ -n "${OCI_USERNAME:-}" ] && [ -n "${OCI_PASSWORD:-}" ]; then
+  PUSH_ARGS+=(--creds "${OCI_USERNAME}:${OCI_PASSWORD}")
+fi
+flux push artifact "${PUSH_ARGS[@]}"
 
-# Keep a plain-directory copy of the tree in the kit: the gap-side stage
+# Keep a plain-directory copy of the tree in the bundle: the gap-side stage
 # script re-pushes it into knr-registry as knr-ops:latest for the workload
 # cluster's Flux (which does not talk to the Zarf registry).
 rm -rf "$REPO_ROOT/airgap/config-artifact"
 cp -R "$ARTIFACT_ROOT" "$REPO_ROOT/airgap/config-artifact"
-echo "==> Kit copy at airgap/config-artifact/ ($(du -sh "$REPO_ROOT/airgap/config-artifact" | cut -f1))"
+echo "==> Bundle copy at airgap/config-artifact/ ($(du -sh "$REPO_ROOT/airgap/config-artifact" | cut -f1))"
 
-echo "==> Done. zarf.yaml's knr-ops-config component references localhost:${REGISTRY_PORT}/${OCI_REPOSITORY}:${OCI_TAG}"
+echo "==> Done. Config artifact: ${OCI_REGISTRY}/${OCI_REPOSITORY}:${OCI_TAG}"

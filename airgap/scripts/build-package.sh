@@ -2,10 +2,9 @@
 # build-package.sh — connected-side package build.
 #
 #   1. mise run validate (all overlays still build)
-#   2. build-config-artifact.sh (trimmed airgap tree -> localhost:5001 OCI)
-#   3. stage workload-node pod images into archives/ (host-daemon tarball for
-#      CAPD preLoadImages; distinct from the mgmt substrate images the Zarf
-#      package pushes into the internal registry)
+#   2. build-config-artifact.sh (trimmed airgap tree -> configured OCI registry)
+#   3. stage the Zarf init package, host-daemon images, workload-node pod
+#      images, and OCI charts into archives/
 #   4. zarf package create
 #
 # Output: zarf-package-knr-ops-airgap-arm64-0.1.0.tar.zst next to airgap/.
@@ -21,8 +20,50 @@ mise run validate
 echo "==> 2/4 config artifact"
 "$SCRIPT_DIR/build-config-artifact.sh"
 
-echo "==> 3/4 workload-node pod images + OCI charts"
+# The package must pull the same config artifact that the preceding step
+# published. Builds retain zarf.yaml's localhost:5001 default unless an
+# alternate OCI_REGISTRY is explicitly supplied, so rewrite only the working
+# tree for package creation when an override is present.
+if [ -n "${OCI_REGISTRY:-}" ]; then
+  OCI_REPOSITORY="${OCI_REPOSITORY:-knr-ops-airgap}"
+  OCI_TAG="${OCI_TAG:-latest}"
+  python3 - airgap/zarf.yaml "${OCI_REGISTRY}/${OCI_REPOSITORY}:${OCI_TAG}" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+replacement = sys.argv[2]
+text = path.read_text()
+expected = "localhost:5001/knr-ops-airgap:latest"
+if expected not in text:
+    raise SystemExit(f"ERROR: expected config artifact reference {expected!r}")
+path.write_text(text.replace(expected, replacement, 1))
+print(f"    zarf config artifact: {replacement}")
+PY
+fi
+
+echo "==> 3/4 offline host assets, workload-node images, and OCI charts"
 mkdir -p airgap/archives
+
+mise x -- zarf tools download-init \
+  --architecture arm64 \
+  --output-directory airgap/archives
+
+HOST_IMAGES=(
+  kindest/node:v1.36.1
+  kindest/node:v1.35.0
+  kindest/haproxy:v20230606-42a2262b
+  docker.io/library/registry:2
+)
+for img in "${HOST_IMAGES[@]}"; do
+  docker pull --platform linux/arm64 "$img" >/dev/null
+done
+docker save -o airgap/archives/kindest_node_v1.36.1_mgmt.tar kindest/node:v1.36.1
+docker save -o airgap/archives/kindest_node_v1.35.0.tar kindest/node:v1.35.0
+docker save -o airgap/archives/kindest_haproxy_v20230606-42a2262b.tar kindest/haproxy:v20230606-42a2262b
+docker save -o airgap/archives/docker.io_library_registry_2.tar docker.io/library/registry:2
+echo "    saved Zarf init package and host-daemon image archives"
+
 WORKLOAD_IMAGES=(
   registry.k8s.io/pause:3.10.1
   docker.io/kindest/kindnetd:v20260528-9350166c
