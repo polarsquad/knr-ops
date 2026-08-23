@@ -50,6 +50,16 @@ resources. There is no app source code here, only declarative infrastructure.
    diffs by the in-cluster konflate instance, so what you push is what gets
    reviewed.
 
+## Keeping this file current
+
+When making changes that affect repository structure, architecture,
+development workflows, build or test procedures, deployment workflows, or
+other information used to navigate and understand the repository, update
+`AGENTS.md` as part of the same pull request.
+
+Do not update `AGENTS.md` for changes that do not affect repository
+understanding or agent workflows.
+
 ## App layout convention
 
 Each component pairs a plain kustomize root with a Flux `Kustomization`:
