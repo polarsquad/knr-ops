@@ -9,8 +9,10 @@ newer. With [mise](https://mise.jdx.dev/) installed:
 mise install
 ```
 
-This provides `kubectl`, `kind`, `helm`, `flux`, `clusterctl`, `clusterawsadm`,
-`aws-cli`, `go`, `sops`, and `age`.
+This provides `kubectl`, `kind`, `helm`, `flux`, `clusterctl`, `go`, `sops`,
+`age`, and the `zarf` CLI. The `aws` profile layers on `aws-cli` and
+`clusterawsadm` (`mise -E aws install`); the `local-host` profile needs no
+extra tools.
 
 You also need:
 

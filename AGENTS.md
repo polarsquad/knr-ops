@@ -38,8 +38,8 @@ resources. There is no app source code here, only declarative infrastructure.
    commit plaintext secrets; `age.agekey` and `.env` are gitignored and must
    stay that way. Encrypt with `mise run sops-encrypt <file>`.
 4. Run `mise run validate` before pushing. PRs are reviewed as rendered Flux
-   diffs by the in-cluster konflate instance, so what you push is what gets
-   reviewed.
+   diffs by the konflate GitHub Actions workflow (backed by an in-cluster
+   instance), so what you push is what gets reviewed.
 
 ## App layout convention
 
@@ -76,7 +76,7 @@ Load these only when the task touches their domain:
 - `docs/architecture.md`: reconciliation order, how workload apps are delivered.
 - `docs/extending.md`: adding a workload cluster, adding apps, adding other providers (Azure, Talos, k0smotron).
 - `docs/secrets.md`: SOPS + age setup, credential rotation.
-- `docs/konflate.md`: rendered PR review, tokens, write-back.
+- `docs/konflate.md`: rendered PR review, CI gate, tokens, write-back.
 - `docs/aws-iam.md`: EKS Pod Identity, ACK controller roles, reader user.
 - `docs/operations.md`: quotas, configuration, bootstrap, verification.
 - `docs/workload-resources.md`: S3/RDS posture, known limitations.

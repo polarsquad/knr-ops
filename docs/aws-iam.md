@@ -8,7 +8,7 @@ The ACK S3, RDS, and IAM controllers on the workload clusters carry
 - Each EKS control plane enables the `eks-pod-identity-agent` addon
   (declared in the CAPI cluster spec).
 - The **management** cluster runs ACK IAM + EKS controllers
-  (`infrastructure/ack-controllers/`, authenticated with the same
+  (`mgmt/aws/infrastructure/ack-controllers/`, authenticated with the same
   SOPS-encrypted credential pattern as CAPA) which declaratively create:
   - an IAM `Role` per controller, trusted by `pods.eks.amazonaws.com`:
     - `knr-ops-ack-s3-controller` — scoped to `knr-ops-*` buckets only
