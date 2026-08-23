@@ -226,7 +226,8 @@ PY
 if [ -n "${WORKLOAD_REGISTRY_HOST:-}" ] && [ "$WORKLOAD_REGISTRY_HOST" != "knr-registry" ]; then
   echo "==> Rewriting workload registry references to '${WORKLOAD_REGISTRY_HOST}'"
   grep -rl "knr-registry" "$ARTIFACT_ROOT" | while IFS= read -r f; do
-    sed -i '' "s/knr-registry/${WORKLOAD_REGISTRY_HOST}/g" "$f"
+    sed -i.bak "s|knr-registry|${WORKLOAD_REGISTRY_HOST}|g" "$f"
+    rm -f "${f}.bak"
   done
 fi
 
@@ -301,7 +302,8 @@ EOF
 if [ -n "${AIRGAP_CLUSTER_NAME:-}" ]; then
   echo "==> Renaming workload cluster to '${AIRGAP_CLUSTER_NAME}' in the artifact copy"
   grep -rl "local-workload" "$LH" | while IFS= read -r f; do
-    sed -i '' "s/local-workload/${AIRGAP_CLUSTER_NAME}/g" "$f"
+    sed -i.bak "s|local-workload|${AIRGAP_CLUSTER_NAME}|g" "$f"
+    rm -f "${f}.bak"
   done
 fi
 
