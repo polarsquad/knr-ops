@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-Tool versions are pinned in `mise.toml`. With [mise](https://mise.jdx.dev/)
-installed:
+Tool versions are pinned in `mise.toml`, which requires mise 2026.8.10 or
+newer. With [mise](https://mise.jdx.dev/) installed:
 
 ```sh
 mise install

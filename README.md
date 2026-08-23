@@ -51,7 +51,7 @@ not a developer self-service portal; you are the consumer.
 
 ## Prerequisites
 
-- Mise
+- Mise 2026.8.10 or newer
 - A running Docker engine, or Podman 5.5+, for kind; the local-host profile
   also uses it for its local OCI registry
 - AWS profile only: GitHub personal access token (PAT) with read access to this
