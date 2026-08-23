@@ -13,7 +13,7 @@ age = "latest"
 # Linux/macOS arm64 asset and use `bin` to name the binary `zarf`.
 [tools."github:zarf-dev/zarf"]
 version = "v0.83.0"
-asset_pattern = 'zarf_v0.83.0_{{ os(linux="Linux", macos="Darwin") }}_{{ arch() }}'
+asset_pattern = 'zarf_v{{ version }}_{{ os(linux="Linux", macos="Darwin") }}_{{ arch() }}'
 bin = "zarf"
 
 [settings]
