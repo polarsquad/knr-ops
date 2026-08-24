@@ -24,6 +24,12 @@ ARCHIVES="$AIRGAP_DIR/archives"
 
 CLUSTER_NAME="${CLUSTER_NAME:-mgmt}"
 KIND_NODE_IMAGE="${KIND_NODE_IMAGE:-kindest/node:v1.36.1}"
+DOCKER_SOCKET_PATH="${DOCKER_SOCKET_PATH:-/var/run/docker.sock}"
+
+if [ ! -S "$DOCKER_SOCKET_PATH" ]; then
+  echo "ERROR: Docker socket does not exist: ${DOCKER_SOCKET_PATH}" >&2
+  exit 1
+fi
 
 echo ">>> Loading image archives into the host Docker daemon..."
 for tar in "$ARCHIVES"/*.tar; do
@@ -41,7 +47,7 @@ apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
     extraMounts:
-      - hostPath: /var/run/docker.sock
+      - hostPath: ${DOCKER_SOCKET_PATH}
         containerPath: /var/run/docker.sock
 EOF
 fi
@@ -56,10 +62,17 @@ REGISTRY_PORT="${REGISTRY_PORT:-5001}"
 if ! docker ps --filter "name=^${REGISTRY_NAME}$" --format '{{.Names}}' | grep -q "$REGISTRY_NAME"; then
   echo ">>> Creating registry container '${REGISTRY_NAME}' (localhost:${REGISTRY_PORT})..."
   docker rm -f "$REGISTRY_NAME" >/dev/null 2>&1 || true
-  docker run -d --name "$REGISTRY_NAME" --network kind -p "127.0.0.1:${REGISTRY_PORT}:5000" registry:2 >/dev/null
+  docker run -d --name "$REGISTRY_NAME" --network kind \
+    -p "127.0.0.1:${REGISTRY_PORT}:5000" registry:2 >/dev/null
 fi
-curl --fail --silent --retry 10 --retry-connrefused --retry-delay 1 \
-  "http://localhost:${REGISTRY_PORT}/v2/" >/dev/null
+if ! curl --fail --show-error --silent --max-time 2 \
+  --retry 15 --retry-all-errors --retry-delay 1 \
+  "http://localhost:${REGISTRY_PORT}/v2/" >/dev/null; then
+  echo "ERROR: registry '${REGISTRY_NAME}' did not become ready" >&2
+  docker ps -a --filter "name=^${REGISTRY_NAME}$" >&2
+  docker logs "$REGISTRY_NAME" >&2 || true
+  exit 1
+fi
 
 # Seed knr-registry: the knr-ops config artifact (workload/local-host syncs
 # from it) and the two OCI charts (flux-operator for the HelmChartProxy,
@@ -67,7 +80,7 @@ curl --fail --silent --retry 10 --retry-connrefused --retry-delay 1 \
 echo ">>> Seeding ${REGISTRY_NAME} with the config artifact + charts..."
 flux push artifact "oci://localhost:${REGISTRY_PORT}/knr-ops:latest" \
   --path="$AIRGAP_DIR/config-artifact" \
-  --source="airgap-kit" \
+  --source="airgap-bundle" \
   --revision="airgap@sha1:$(git -C "$AIRGAP_DIR" rev-parse HEAD 2>/dev/null || echo unknown)" \
   --insecure-registry \
   --reproducible
