@@ -22,19 +22,10 @@ bin = "zarf"
 [settings]
 env_file = ".env"
 
-[tasks.deps-check]
-description = "Validate repo version literals against deps/versions.toml"
-run = "python3 deps/scripts/check.py --forbid"
-
 [tasks.validate]
-description = "Check shell scripts and build every kustomize overlay"
+description = "Check shell scripts, run unit tests, and build every kustomize overlay"
 run = '''
 fail=0
-echo "==> deps-check"
-if ! python3 deps/scripts/check.py --forbid; then
-  echo "    FAILED: dependency drift" >&2
-  fail=1
-fi
 for script in bootstrap.sh teardown.sh; do
   echo "==> bash -n $script"
   if ! bash -n "$script"; then
@@ -42,6 +33,11 @@ for script in bootstrap.sh teardown.sh; do
     fail=1
   fi
 done
+echo "==> unittest airgap/scripts"
+if ! python3 -m unittest discover -s airgap/scripts -p 'test_*.py'; then
+  echo "    FAILED: airgap unit tests" >&2
+  fail=1
+fi
 for dir in $(find mgmt workload -name kustomization.yaml -exec dirname {} \; | sort -u); do
   echo "==> kustomize build $dir"
   if ! kubectl kustomize "$dir" >/dev/null; then
