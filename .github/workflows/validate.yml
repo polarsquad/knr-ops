@@ -13,9 +13,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Dependency drift
-        run: python3 deps/scripts/check.py --forbid
-
       - name: Install kustomize
         env:
           GITHUB_TOKEN: ${{ github.token }}

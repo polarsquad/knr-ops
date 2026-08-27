@@ -42,13 +42,10 @@ resources. There is no app source code here, only declarative infrastructure.
 - `mise.toml`: pinned tool versions and all task entrypoints.
   `mise.aws.toml` is the AWS tool layer (aws-cli, clusterawsadm),
   activated with `MISE_ENV=aws`.
-- `deps/versions.toml`: the single authoritative dependency version
-  catalog. Every pinned version in the repo is either generated from it or
-  validated against it by `mise run deps-check` (same check CI runs). A
-  dependency bump changes exactly one value there; see
-  `docs/dependencies.md`. Generated consumers (`zarf.yaml`, `images.txt`,
-  airgap scripts) are rendered from the catalog, so never hand-edit their
-  version literals.
+- `renovate.json5`: Renovate config. Dependency versions live in the native
+  files that consume them (mise configs, manifests, workflows, airgap
+  inventory); Renovate discovers and updates them weekly and tracks pending
+  updates in the dependency dashboard issue. See `docs/dependencies.md`.
 
 ## The golden rules (read before changing anything)
 

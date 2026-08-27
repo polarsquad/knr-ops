@@ -83,14 +83,14 @@ cp .env.example .env        # AWS profile only: fill in GitHub PAT and AWS setti
 mise run sops-keygen        # first time only: age key for SOPS
 mise run bootstrap          # kind cluster + Flux; everything else is GitOps
 flux get kustomizations --watch
-mise run validate           # build every kustomize overlay (mirrors CI)
-mise run deps-check         # verify version pins against deps/versions.toml (mirrors CI)
+mise run validate           # bash -n, unit tests, build every kustomize overlay (mirrors CI)
 mise run teardown           # full teardown (EKS, AWS resources, kind)
 ```
 
-Version bumps change exactly one value in `deps/versions.toml`; generated
-consumers and CI keep the rest in sync (see
-[docs/dependencies.md](docs/dependencies.md)).
+Dependency versions are managed by Renovate
+([renovate.json5](renovate.json5)): they live in the native files that
+consume them and Renovate opens update PRs weekly; see
+[docs/dependencies.md](dependencies.md).
 
 ### Mise profiles
 
@@ -132,7 +132,7 @@ suspends Flux and removes the AWS-managed infrastructure.
 
 | Page | Contents |
 |---|---|
-| [docs/dependencies.md](docs/dependencies.md) | Dependency version catalog: the single place to bump versions, update procedure, intentional differences |
+| [docs/dependencies.md](docs/dependencies.md) | Renovate-managed dependencies: managed surfaces, update procedure, intentional differences |
 | [docs/architecture.md](docs/architecture.md) | Architecture diagram, reconciliation order, how workload apps are delivered |
 | [docs/aws-iam.md](docs/aws-iam.md) | EKS Pod Identity, ACK controller IAM roles, per-cluster reader roles, the `knr-ops-reader` console user |
 | [docs/workload-resources.md](docs/workload-resources.md) | S3 bucket security posture, RDS instances, known limitations |
@@ -147,8 +147,6 @@ suspends Flux and removes the AWS-managed infrastructure.
 ```
 ├── airgap/                       Zarf air-gap bundle, image inventory, scripts
 ├── bootstrap.sh / teardown.sh     One-time imperative bootstrap / full teardown
-├── deps/                          Version catalog (versions.toml) + drift-check
-│                                  scripts; single place to bump any dependency
 ├── docs/                          Detailed documentation (see table above)
 ├── mise.toml / mise.*.toml        Pinned toolchain and AWS/local-host tasks
 ├── mgmt/aws/                     Synced by the MANAGEMENT cluster's Flux
