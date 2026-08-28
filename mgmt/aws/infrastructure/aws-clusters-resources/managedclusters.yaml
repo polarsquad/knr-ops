@@ -14,3 +14,12 @@ metadata:
   name: eu-west-1-workload
   namespace: default
 spec: {}
+---
+# Infrastructure resource for the EKS management cluster. The Cluster in
+# mgmt/aws/clusters/eu-north-1/management/ references this literal name.
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedCluster
+metadata:
+  name: eu-north-1-management
+  namespace: default
+spec: {}

@@ -1,0 +1,93 @@
+---
+# ── EKS management Cluster ──────────────────────────────────────────────────
+# The management cluster manages itself: this object is created by CAPA in the
+# kind bootstrap cluster, moved into the management cluster by `clusterctl
+# move` (pivot.sh), and from then on reconciled from Git by the Flux instance
+# running inside it. See docs/operations.md "Bootstrap and pivot".
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: management
+  namespace: default
+  labels:
+    region: eu-north-1
+    # Deliberately NOT `fluxcd: enabled`: the ClusterResourceSets in
+    # mgmt/aws/addons/flux-apps/ select on fluxcd=enabled + region and would
+    # deploy a workload-cluster FluxInstance into the management cluster.
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 192.168.0.0/16
+    services:
+      cidrBlocks:
+        - 10.128.0.0/12
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedControlPlane
+    name: management-control-plane
+  # Literal final name: the AWSManagedCluster lives outside this overlay (in
+  # mgmt/aws/infrastructure/aws-clusters-resources/) so the nameReference for
+  # it does not fire — same as the workload clusters.
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedCluster
+    name: eu-north-1-management
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: management-control-plane
+  namespace: default
+spec:
+  region: eu-north-1
+  version: "1.34.6"
+  endpointAccess:
+    public: true
+    private: false
+  addons:
+    - name: vpc-cni
+      version: v1.21.1-eksbuild.7
+      conflictResolution: overwrite
+    - name: coredns
+      version: v1.13.2-eksbuild.4
+      conflictResolution: overwrite
+    - name: kube-proxy
+      version: v1.34.6-eksbuild.2
+      conflictResolution: overwrite
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: management-pool
+  namespace: default
+spec:
+  clusterName: management
+  replicas: 2
+  template:
+    spec:
+      clusterName: management
+      bootstrap:
+        dataSecretName: ""
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: management-pool
+      version: "1.34.6"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedMachinePool
+metadata:
+  name: management-pool
+  namespace: default
+spec:
+  instanceType: t4g.medium
+  scaling:
+    minSize: 2
+    maxSize: 3
+  amiType: AL2023_ARM_64_STANDARD
+  capacityType: onDemand
+  availabilityZones:
+    - eu-north-1a
+    - eu-north-1b
+    - eu-north-1c
