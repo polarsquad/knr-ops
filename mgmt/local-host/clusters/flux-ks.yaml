@@ -20,3 +20,29 @@ spec:
       kind: Cluster
       name: local-workload
       namespace: default
+---
+# The CAPD management cluster: created by CAPD in the kind bootstrap cluster,
+# moved into itself by `clusterctl move` (pivot.sh), and from then on
+# reconciled from the OCI artifact by the Flux instance running inside it.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: docker-management-cluster
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 2m
+  timeout: 5m
+  prune: true
+  wait: false
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+  path: ./mgmt/local-host/clusters/management
+  dependsOn:
+    - name: capd-system
+  healthChecks:
+    - apiVersion: cluster.x-k8s.io/v1beta2
+      kind: Cluster
+      name: local-management
+      namespace: default
