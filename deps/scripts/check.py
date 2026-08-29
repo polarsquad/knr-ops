@@ -14,6 +14,7 @@ Modes:
 import argparse
 import pathlib
 import re
+import subprocess
 import sys
 import tomllib
 
@@ -39,10 +40,6 @@ FORBID_EXCLUDE_DIRS = [
     "airgap/rendered",
     "airgap/sbom",
     "airgap/config-artifact",
-    # Rust build artifacts; cargo metadata embeds toolchain and dependency
-    # version strings that collide with catalog literals (e.g. helm 4.2
-    # inside libtokio rlib names).
-    "bootstrap-rs/target",
 ]
 
 # Never scanned by --forbid: files whose version literals are either
@@ -101,8 +98,22 @@ def run_slots(catalog):
 
 
 def iter_repo_files():
-    for path in sorted(ROOT.rglob("*")):
-        rel = path.relative_to(ROOT).as_posix()
+    """Yield tracked files only: version pins live in source, not in local
+    build artifacts (cargo output embeds dependency versions that collide
+    with catalog literals), and untracked scratch files are not pins either.
+    """
+    listed = subprocess.run(
+        ["git", "ls-files", "-z"],
+        check=True,
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        text=False,
+    ).stdout
+    for entry in listed.split(b"\0"):
+        if not entry:
+            continue
+        rel = entry.decode("utf-8", "surrogateescape")
+        path = ROOT / rel
         if not path.is_file():
             continue
         if any(rel == d or rel.startswith(d + "/") for d in FORBID_EXCLUDE_DIRS):

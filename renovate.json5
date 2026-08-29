@@ -9,9 +9,7 @@
   //   - clusterctl operator provider manifests under mgmt/*/capi-providers/
   //   - kind node images (cluster classes, airgap scripts, image inventory)
   //   - airgap image inventory and zarf.yaml image lists
-  //   - imperative chart pins in bootstrap-rs/src/main.rs (docker datasource
-  //     against the chart's OCI registry path; cert-manager and the CAPI
-  //     operator constants join when the pivot port lands, issue #95)
+  //   - annotated version constants in bootstrap-rs sources
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
@@ -167,20 +165,18 @@
       "extractVersionTemplate": "^v(?<version>.+)",
       "autoReplaceStringTemplate": "clusterawsadm = { version = \"{{newValue}}\""
     },
-    // ── bootstrap-rs imperative chart pins ────────────────────────────────
-    // The binary installs these charts before Flux exists, so the versions
-    // live as Rust constants in bootstrap-rs/src/main.rs rather than in
-    // HelmReleases the flux manager could read. The docker datasource
-    // resolves OCI chart refs by their registry path; depName carries the
-    // full path so these pins join the existing flux package group.
+    // ── bootstrap-rs chart pins (annotation-driven) ───────────────────────
+    // Datasource and depName live in `// renovate:` comments next to the
+    // constants in the Rust source (see main.rs); this one manager covers
+    // every annotated pin without per-dependency configuration.
     {
       "customType": "regex",
-      "description": "knr-bootstrap imperative flux chart pin",
-      "managerFilePatterns": ["/(^|/)bootstrap-rs/src/main\\.rs$/"],
-      "matchStrings": ["FLUX_CHART_VERSION: &str = \"(?<currentValue>[^\"]+)\""],
-      "depNameTemplate": "ghcr.io/controlplaneio-fluxcd/charts/flux-operator",
-      "datasourceTemplate": "docker",
-      "autoReplaceStringTemplate": "FLUX_CHART_VERSION: &str = \"{{newValue}}\""
+      "description": "Annotated version constants in bootstrap-rs sources",
+      "managerFilePatterns": ["/(^|/)bootstrap-rs/src/[^/]+\\.rs$/"],
+      "matchStrings": [
+        "// renovate: datasource=(?<datasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>[a-z0-9-]+))?\\nconst (?<constName>[A-Z0-9_]+): &str = \"(?<currentValue>[^\"]+)\""
+      ],
+      "autoReplaceStringTemplate": "// renovate: datasource={{{datasource}}} depName={{{depName}}}{{#if versioning}} versioning={{{versioning}}}{{/if}}\nconst {{{constName}}}: &str = \"{{{newValue}}}\""
     },
     // ── clusterctl operator provider manifests ───────────────────────────
     {
