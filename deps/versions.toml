@@ -144,3 +144,11 @@ key = "capi_operator_chart"
 file = "pivot.sh"
 pattern = 'CAPI_OPERATOR_VERSION="{version}"'
 count = 1
+
+# The Rust binary installs the flux charts imperatively before Flux exists;
+# the constant must track the catalog like the HelmChartProxies do.
+[[slot]]
+key = "flux_operator_chart"
+file = "bootstrap-rs/src/main.rs"
+pattern = 'FLUX_CHART_VERSION: &str = "{version}"'
+count = 1

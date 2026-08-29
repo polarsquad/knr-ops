@@ -39,6 +39,10 @@ FORBID_EXCLUDE_DIRS = [
     "airgap/rendered",
     "airgap/sbom",
     "airgap/config-artifact",
+    # Rust build artifacts; cargo metadata embeds toolchain and dependency
+    # version strings that collide with catalog literals (e.g. helm 4.2
+    # inside libtokio rlib names).
+    "bootstrap-rs/target",
 ]
 
 # Never scanned by --forbid: files whose version literals are either

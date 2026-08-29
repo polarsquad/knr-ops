@@ -77,6 +77,11 @@ jobs:
           RENOVATE_GITHUB_COM_TOKEN: ${{ github.token }}
         run: python3 airgap/tests/test-renovate-digest-pinning.py
 
+      - name: Verify bootstrap-rs chart-pin detection
+        env:
+          RENOVATE_GITHUB_COM_TOKEN: ${{ github.token }}
+        run: python3 bootstrap-rs/tests/test-renovate-chart-pins.py
+
   yaml-lint:
     name: Lint YAML
     runs-on: ubuntu-latest
