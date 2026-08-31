@@ -107,7 +107,7 @@ spec:
   interval: 1h
   url: oci://public.ecr.aws/aws-controllers-k8s/iam-chart
   ref:
-    tag: "1.7.2"
+    tag: "1.9.0"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
