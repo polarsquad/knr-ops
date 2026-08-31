@@ -19,7 +19,7 @@ spec:
   interval: 1h
   url: oci://public.ecr.aws/aws-controllers-k8s/s3-chart
   ref:
-    tag: "1.7.1"
+    tag: "1.11.0"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
