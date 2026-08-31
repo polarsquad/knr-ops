@@ -8,7 +8,7 @@ description = "One-time imperative bootstrap for the knr-ops management cluster 
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-tls"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time", "io-util"] }
 tempfile = "3"
