@@ -38,12 +38,13 @@ pinning behavior are defined in [`renovate.json5`](../renovate.json5).
 1. Wait for a Renovate PR. For troubleshooting, a local dry-run command is
    documented in [AGENTS.md](../AGENTS.md) ("Editing renovate.json5").
 2. Review the rendered diff; CI (`validate` workflow) builds every kustomize
-   overlay and checks the airgap image inventory on each update PR.
+   overlay on each update PR.
 3. Merge manually; nothing automerges.
 
-If an image appears in both a manifest and `airgap/images.txt`, bump them in
-the same PR: the airgap inventory check fails CI if the manifest references
-an image missing from the inventory.
+If an image appears in both a manifest and the airgap inventory
+(`airgap/images.txt` or `zarf.yaml`), bump them in the same PR. There is no
+automated completeness check between manifests and the inventory, so verify
+the pairing during review.
 
 ## Intentional differences
 

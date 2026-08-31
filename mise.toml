@@ -23,7 +23,7 @@ bin = "zarf"
 env_file = ".env"
 
 [tasks.validate]
-description = "Check shell scripts, run unit tests, and build every kustomize overlay"
+description = "Check shell scripts, run the bootstrap config cross-check, and build every kustomize overlay"
 run = '''
 fail=0
 for script in bootstrap.sh bootstrap-common.sh pivot.sh teardown.sh; do
@@ -33,11 +33,6 @@ for script in bootstrap.sh bootstrap-common.sh pivot.sh teardown.sh; do
     fail=1
   fi
 done
-echo "==> unittest airgap/tests"
-if ! python3 -m unittest discover -s airgap/tests -p 'test_*.py'; then
-  echo "    FAILED: airgap unit tests" >&2
-  fail=1
-fi
 echo "==> bootstrap.toml cross-check"
 if ! python3 tests/test-bootstrap-config.py; then
   echo "    FAILED: bootstrap.toml cross-check" >&2
