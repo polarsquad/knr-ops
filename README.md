@@ -77,63 +77,79 @@ not a developer self-service portal; you are the consumer.
 
 ## Prerequisites
 
-The toolbox container is the primary interface (issue #104): the only host
-prerequisite is a running container engine.
+The toolbox container is the primary lifecycle interface. A container user
+needs only the repository checkout and a running engine:
 
-- A running Docker engine, or Podman 5.5+ (kind creates the clusters through
-  the engine socket the toolbox mounts)
-- The toolbox image: `ghcr.io/polarsquad/knr-ops-toolbox` (published on semver
-  tags), or built locally with
+- Docker, or Podman 5.5+; kind creates clusters through the mounted engine
+  socket
+- The toolbox image. No semver release has been published yet, so build the
+  current checkout with
   `docker build -f bootstrap-rs/Dockerfile -t knr-ops-toolbox:dev .`
 
-The native host path (development and air-gap work) additionally needs:
+A future matching `v*` tag publishes
+`ghcr.io/polarsquad/knr-ops-toolbox` for Linux amd64 and arm64 as `X.Y.Z`,
+`X.Y`, and stable `latest`, with a keyless signature and SPDX SBOM
+attestation. The `aws` environment additionally requires a GitHub PAT with
+read access, AWS credentials and service quotas, and an age private key.
+
+Native development and air-gap work additionally need:
 
 - Mise 2026.8.10 or newer
-- Rust toolchain (via [rustup](https://rustup.rs/); the exact pin lives in
-  `bootstrap-rs/rust-toolchain.toml`) to build the bootstrap CLI
-- AWS environment only: GitHub personal access token (PAT) with read access
-  to this repo
-- AWS environment only: AWS credentials and quotas established for the
-  environment
+- Rust via [rustup](https://rustup.rs/) when building the CLI outside the
+  image; the pin lives in `bootstrap-rs/rust-toolchain.toml`
 
 ## Quickstart
 
-With only a container engine (the primary interface, issue #104):
+Build the current checkout and run the complete local-host lifecycle with only
+Docker installed:
 
 ```sh
-cp .env.example .env        # AWS environment only: fill in GitHub PAT and AWS settings
+docker build -f bootstrap-rs/Dockerfile -t knr-ops-toolbox:dev .
+mkdir -p .kube
 docker run --rm -it \
   -v "$PWD:/workspace" -w /workspace \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/.kube:/root/.kube" \
   -e KUBECONFIG=/workspace/.kube/kind.yaml \
-  ghcr.io/polarsquad/knr-ops-toolbox:latest
-# teardown: same invocation with `teardown` appended
+  knr-ops-toolbox:dev local-host
+
+# Teardown uses the same mounts and the teardown subcommand:
+docker run --rm -it \
+  -v "$PWD:/workspace" -w /workspace \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/.kube:/root/.kube" \
+  -e KUBECONFIG=/workspace/.kube/kind.yaml \
+  knr-ops-toolbox:dev teardown local-host
 ```
 
-`scripts/toolbox-run.sh` wraps the invocation (engine and socket detection,
-`.env` passthrough, repo-local kubeconfig state); `mise run bootstrap` and
-`mise run teardown` call it for hosts that already have mise. See
-[docs/operations.md](docs/operations.md) for the Podman form and the full
-runtime contract.
+Use `ghcr.io/polarsquad/knr-ops-toolbox:<version>` instead of the local image
+for a published release. The AWS form must also pass the Git source, PAT, age
+key path, and any AWS credential variables. Podman socket paths vary by host.
+`scripts/toolbox-run.sh` handles those mounts, loads `.env` without preserving
+quote characters, and persists kubeconfigs under `.kube/`; see
+[Operations](docs/operations.md) for both forms.
 
-The native host path (development):
+For hosts with mise, the lifecycle tasks call that wrapper. Installing the
+pinned native tools also enables key generation, validation, and inspection:
 
 ```sh
-mise trust                  # to enable mise in this repository
-mise install                # installs tools pinned in mise.toml (kubectl, kind, flux, ...)
-cp .env.example .env        # AWS environment only: fill in GitHub PAT and AWS settings
-mise run sops-keygen        # first time only: age key for SOPS
-mise run bootstrap          # disposable kind cluster + Flux + pivot; then it is all GitOps
+docker build -f bootstrap-rs/Dockerfile -t knr-ops-toolbox:dev .
+export TOOLBOX_IMAGE=knr-ops-toolbox:dev
+mise trust
+mise install
+cp .env.example .env        # AWS only: fill in the Git source and PAT
+mise run sops-keygen         # first time only: age key for SOPS
+mise run bootstrap           # toolbox: bootstrap, Flux handoff, then pivot
+export KUBECONFIG="$PWD/.kube/knr-ops-mgmt.yaml"
 flux get kustomizations --watch
-mise run validate           # bash -n, unit tests, build every kustomize overlay (mirrors CI)
-mise run teardown           # full teardown (EKS, AWS resources, kind)
+mise run validate            # shell syntax, bootstrap.toml cross-check, overlays
+mise run teardown            # toolbox: reverse-order lifecycle cleanup
 ```
 
 Dependency versions are managed by Renovate
-([renovate.json5](renovate.json5)) running as the hosted GitHub App: they
-live in the native files that consume them and Renovate opens update PRs
-weekly; see [docs/dependencies.md](docs/dependencies.md).
+([renovate.json5](renovate.json5)) running as the hosted GitHub App; they live
+in their native consumer files and update PRs open weekly. See
+[Dependencies](docs/dependencies.md).
 
 ### Environments (formerly profiles)
 
@@ -150,8 +166,11 @@ workload delivery and application access. This covers the complete GitOps and
 CAPI lifecycle without provisioning AWS resources:
 
 ```sh
+docker build -f bootstrap-rs/Dockerfile -t knr-ops-toolbox:dev .
+export TOOLBOX_IMAGE=knr-ops-toolbox:dev
 mise -E local-host install
 mise -E local-host run bootstrap
+export KUBECONFIG="$PWD/.kube/knr-ops-mgmt.yaml"
 mise -E local-host run oci-push  # republish local management and workload paths
 mise -E local-host run kubeconfigs
 mise -E local-host run podinfo-port-forward  # http://localhost:9898
@@ -167,49 +186,59 @@ Flux reconciliation chains and surfaces workload reconciliation errors. A
 successful bootstrap, followed by the Podinfo port-forward, verifies the
 end-to-end local-host flow.
 
-The local-host teardown deletes the CAPD workload cluster before deleting the
-`mgmt` kind cluster and local registry container. The default teardown path
-suspends Flux and removes the AWS-managed infrastructure.
+Local-host teardown deletes the CAPD workload cluster first, then removes the
+pre-pivot kind cluster or the post-pivot self-managed management containers,
+and removes the local registry last. AWS teardown discovers the active
+controller host, deletes the workload clusters, sweeps orphaned resources in
+both workload regions plus the self-managed management cluster, and removes
+the `clusterawsadm` CloudFormation stack.
 
 ## The bootstrap CLI
 
-The imperative lifecycle steps run through a single Rust binary,
-`knr-bootstrap` ([docs/bootstrap-cli.md](docs/bootstrap-cli.md)): it creates
-the disposable kind cluster, hands off to Flux, and (by default) pivots the
-CAPI inventory into the self-managed management cluster before deleting kind.
-Reruns are safe by default (a healthy cluster is reused, every step is
-idempotent), so a failed run resumes by rerunning. The shell scripts
-(`bootstrap.sh`, `pivot.sh`, `teardown.sh`) remain the `mise` entrypoints
-until the binary completes full parity runs per environment; the teardown port
-([#100](https://github.com/polarsquad/knr-ops/issues/100)) and the
-externalization of repo-specific constants into `bootstrap.toml`
-([#98](https://github.com/polarsquad/knr-ops/issues/98)) are tracked issues.
+The single `knr-bootstrap` binary implements bootstrap, the default pivot, and
+`knr-bootstrap teardown`. Repository-owned cluster names, paths, chart
+versions, provider manifests, and teardown targets come from
+[`bootstrap.toml`](bootstrap.toml); `mise run validate` cross-checks that file
+against the Git manifests. Sequence-level behavior and generic fallback
+defaults remain in the binary.
+
+`mise run bootstrap`, `pivot`, and `teardown` now run the CLI through the
+toolbox wrapper. The shell scripts remain native reference and fallback paths
+until both environments complete parity runs; local-host has passed the full
+lifecycle, while AWS parity still gates retirement. See
+[The bootstrap CLI](docs/bootstrap-cli.md) for the interface, configuration,
+teardown controls, toolbox release, and current parity status.
 
 ## Documentation
 
 | Page | Contents |
 |---|---|
-| [docs/bootstrap-cli.md](docs/bootstrap-cli.md) | The `knr-bootstrap` Rust CLI: build, interface, env knobs, pivot, parity status, roadmap |
+| [docs/bootstrap-cli.md](docs/bootstrap-cli.md) | The `knr-bootstrap` lifecycle CLI: toolbox distribution, interface, `bootstrap.toml`, pivot, teardown, parity status |
 | [docs/dependencies.md](docs/dependencies.md) | Renovate-managed dependency updates: covered surfaces, update procedure, intentional differences |
 | [docs/architecture.md](docs/architecture.md) | Architecture diagram, reconciliation order, how workload apps are delivered |
 | [docs/aws-iam.md](docs/aws-iam.md) | EKS Pod Identity, ACK controller IAM roles, per-cluster reader roles, the `knr-ops-reader` console user |
 | [docs/workload-resources.md](docs/workload-resources.md) | S3 bucket security posture, RDS instances, known limitations |
 | [docs/konflate.md](docs/konflate.md) | Rendered Flux PR review: GitHub Actions gate, in-cluster instance, write-back to PRs, tokens |
 | [docs/secrets.md](docs/secrets.md) | SOPS + age secret management, key setup, credential rotation |
-| [docs/operations.md](docs/operations.md) | Prerequisites, AWS service quotas, configuration, bootstrap, pivot recovery, teardown, validation |
+| [docs/operations.md](docs/operations.md) | Toolbox runtime, prerequisites, quotas, bootstrap, pivot recovery, teardown, validation |
 | [docs/extending.md](docs/extending.md) | Adding a workload cluster, adding apps to the workload clusters, adding other providers (Azure, Talos, k0smotron) |
 | [docs/airgap.md](docs/airgap.md) | Zarf air-gap bundle: package build, offline deploy, verification checklist, update drill |
 
 ## Repository layout
 
 ```
-├── airgap/                       Zarf air-gap bundle, image inventory, scripts
-├── bootstrap-rs/                 knr-bootstrap: the Rust bootstrap/pivot CLI
-├── bootstrap.sh / pivot.sh /     Shell equivalents; kept until the binary
-│   teardown.sh                   completes full parity runs, then retired
-├── docs/                         Detailed documentation (see table above)
-├── mise.toml / mise.*.toml       Pinned toolchain and AWS/local-host tasks
-├── mgmt/aws/                     Synced by the MANAGEMENT cluster's Flux
+├── .github/workflows/             Validation, Rust/toolbox CI, signed releases
+├── airgap/                        Zarf air-gap bundle, image inventory, scripts
+├── bootstrap-rs/                  Lifecycle CLI, toolbox Dockerfile, Rust tests
+├── bootstrap.toml                 Repository-owned lifecycle configuration
+├── bootstrap.sh / pivot.sh /      Native shell references and fallback paths;
+│   teardown.sh                    retained until both parity gates pass
+├── scripts/toolbox-run.sh         Docker/Podman wrapper used by lifecycle tasks
+├── tests/                         Config and Renovate coverage cross-checks
+├── docs/                          Detailed documentation (see table above)
+├── mise.toml / mise.*.toml        Pinned toolchain and AWS/local-host tasks
+├── renovate.json5                 Hosted Renovate discovery and grouping rules
+├── mgmt/aws/                      Synced by the MANAGEMENT cluster's Flux
 │   ├── infrastructure/           cert-manager, CAPI operator, CAPA identity,
 │   │                              ACK controllers, pod-identity roles,
 │   │                              account-global IAM (reader console user),

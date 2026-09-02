@@ -12,6 +12,12 @@ delivered through CAPI addons, and application workloads (the
 managing secure S3 buckets, PostgreSQL instances, and read-only IAM roles)
 running on each workload cluster.
 
+The operator normally runs the imperative lifecycle through the
+`knr-ops-toolbox` container. It mounts the host engine socket, joins the kind
+network while the bootstrap cluster exists, and leaves no toolbox workload in
+the managed clusters. This packaging changes the host tool boundary, not the
+Flux or CAPI reconciliation architecture.
+
 ```mermaid
 flowchart TD
     subgraph bootstrap["Bootstrap (one-time, knr-bootstrap CLI)"]

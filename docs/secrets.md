@@ -24,13 +24,41 @@ with `spec.decryption.provider: sops`):
 
 ```sh
 mise run sops-keygen        # creates ./age.agekey and prints the public key
+export SOPS_AGE_KEY_FILE="$PWD/age.agekey"
 ```
 
-Put the printed public key into the `age:` field of `.sops.yaml`, then
-re-encrypt existing secrets so they target your key:
+`AGE_KEY_FILE` is the bootstrap input; `SOPS_AGE_KEY_FILE` tells the SOPS CLI
+which private key to use while editing encrypted files.
+
+With the toolbox and no host mise installation:
+
+```sh
+docker run --rm --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/workspace" -w /workspace \
+  --entrypoint age-keygen "$TOOLBOX_IMAGE" -o age.agekey
+```
+
+Set `TOOLBOX_IMAGE` to a published toolbox tag or a local build. Put the
+printed public key into the `age:` field of `.sops.yaml`, then re-encrypt
+existing secrets so they target your key:
 
 ```sh
 mise run sops-updatekeys
+```
+
+The container-only equivalent uses the new private key explicitly:
+
+```sh
+docker run --rm --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/workspace" -w /workspace \
+  -e SOPS_AGE_KEY_FILE=/workspace/age.agekey \
+  --entrypoint sh "$TOOLBOX_IMAGE" -c '
+    for f in $(find mgmt/aws -name "*.sops.yaml"); do
+      sops updatekeys --yes "$f"
+    done
+  '
 ```
 
 ## Setting / rotating AWS credentials

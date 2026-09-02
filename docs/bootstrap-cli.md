@@ -1,122 +1,207 @@
-# The bootstrap CLI (knr-bootstrap)
+# The bootstrap CLI (`knr-bootstrap`)
 
-The imperative part of knr-ops (the one-time bootstrap, the CAPI pivot into
-the self-managed management cluster, and, once its port lands, the teardown)
-lives in a single Rust binary, `knr-bootstrap`, in [`bootstrap-rs/`](../bootstrap-rs/).
-Everything the binary runs is a one-time imperative step; after it finishes,
-Flux owns the world and the binary is not needed again until teardown.
+The imperative part of knr-ops lives in one Rust binary under
+[`bootstrap-rs/`](../bootstrap-rs/). It implements the initial bootstrap, the
+default CAPI pivot into the self-managed management cluster, and teardown.
+After bootstrap and pivot finish, Flux owns the declared state until teardown.
 
-The binary is a behavioral port of the shell scripts it replaces
-(`bootstrap.sh` + `pivot.sh`; `teardown.sh` is being ported under
-[#100](https://github.com/polarsquad/knr-ops/issues/100)). It preserves the
-scripts' step order, `>>>` progress messages, error text, and environment
-interface, with two deliberate upgrades over the scripts:
+The binary is a behavioral port of `bootstrap.sh`, `pivot.sh`, and
+`teardown.sh`. It preserves their step order, progress messages, environment
+interface, and safety guards, with two deliberate upgrades:
 
 - **Reruns are safe by default.** An existing healthy `mgmt` kind cluster is
-  reused and every step is idempotent, so a partially failed bootstrap or
-  pivot can be resumed by rerunning. Pass `--recreate` to delete and rebuild
-  the kind cluster instead.
-- **No shell, no quoting.** Tool invocations pass typed argv entries, secrets
-  travel through stdin and the environment (never argv), and the HTTP checks
-  (GitHub branch availability, registry readiness) run through reqwest with
-  explicit timeouts instead of `curl`.
+  reused and each bootstrap or pivot step is idempotent. Pass `--recreate` to
+  delete and rebuild the kind cluster instead.
+- **Typed process execution.** Tool arguments are passed as argv entries,
+  secrets travel through stdin or the environment, and the GitHub and registry
+  HTTP checks use reqwest with explicit timeouts.
 
-## Build
+## Distribution and build
+
+The primary distribution is the toolbox image,
+`ghcr.io/polarsquad/knr-ops-toolbox`. It contains `knr-bootstrap` and the
+pinned tools required by the lifecycle. See [Operations](./operations.md) for
+the container invocation and host runtime contract.
+
+The `toolbox-release` workflow runs on `v*` tags. It requires the tag to match
+`bootstrap-rs/Cargo.toml`, builds Linux amd64 and arm64 images, publishes
+`X.Y.Z`, `X.Y`, and stable `latest` tags, signs the image with GitHub OIDC, and
+attaches a Syft SPDX JSON SBOM attestation. The `bootstrap-rs` CI workflow also
+builds and smokes the arm64 image when its inputs change.
+
+No semver release has been published yet. Build the current checkout as shown
+in [Operations](./operations.md) until the first tag completes the workflow.
+
+Build the CLI directly for native development:
 
 ```sh
 cd bootstrap-rs
-cargo build            # debug; add --release for an optimized binary
-./target/debug/knr-bootstrap --help
+cargo build --locked
+cd ..
+./bootstrap-rs/target/debug/knr-bootstrap --help
+./bootstrap-rs/target/debug/knr-bootstrap teardown --help
 ```
 
-CI builds, lints (fmt, clippy `-D warnings`), and tests the crate on every
-change under `bootstrap-rs/` (`.github/workflows/bootstrap-rs.yml`). The
-toolchain is pinned in `bootstrap-rs/rust-toolchain.toml`; dependencies are
-locked in `Cargo.lock`.
+Run the binary from the repository root so its default `./bootstrap.toml` path
+resolves. Set `BOOTSTRAP_CONFIG` when running from another directory.
+
+CI runs `cargo fmt --check`, clippy with warnings denied, a locked build, and
+the test suite. The toolchain is pinned in `bootstrap-rs/rust-toolchain.toml`;
+crate dependencies are locked in `Cargo.lock`.
 
 ## Interface
 
-The CLI surface is the scripts' surface: a positional profile, `--recreate`,
-and the environment. The expanded flag interface is intentionally deferred
-(follow the [#92](https://github.com/polarsquad/knr-ops/issues/92) and
-[#95](https://github.com/polarsquad/knr-ops/issues/95) issue threads).
-
-```sh
-knr-bootstrap [PROFILE] [--recreate]
+```text
+knr-bootstrap [OPTIONS] [PROFILE] [COMMAND]
+knr-bootstrap teardown [PROFILE]
 ```
 
-- `PROFILE`: `aws` (default) or `local-host`. A non-empty `KNR_OPS_PROFILE`
-  takes precedence over the positional argument, matching `bootstrap.sh`.
-- `--recreate`: delete and recreate an existing `mgmt` kind cluster instead of
-  reusing it. Required when the profile or the kind/registry configuration
-  changed since the cluster was created; the reuse path does not detect drift.
+Common examples:
 
-Every `${VAR:-default}` knob the scripts read is read the same way: unset and
-empty both fall back to the default. Where a knob configures both the binary
-and a delegated `mise` child (for example `oci-push`), the resolved value is
-forwarded to the child explicitly.
+```sh
+knr-bootstrap                         # aws bootstrap, then pivot
+knr-bootstrap local-host              # local-host bootstrap, then pivot
+knr-bootstrap --recreate local-host   # rebuild the bootstrap kind cluster
+knr-bootstrap teardown                # aws teardown
+knr-bootstrap teardown local-host     # local-host teardown
+```
 
-| Knob | Default | Used by |
+- `PROFILE` is the CLI's retained positional name. Its value names a section
+  under `[environments.*]` in
+  [`bootstrap.toml`](../bootstrap.toml). The checked-in environments are `aws`
+  and `local-host`.
+- A non-empty `KNR_OPS_PROFILE` overrides the positional profile. If
+  neither is set, `bootstrap.default-environment` from `bootstrap.toml` is
+  used.
+- `--recreate` applies to bootstrap only. Teardown is a subcommand and keeps
+  its script-compatible controls in environment variables.
+- There is no pivot subcommand. Pivot is the default exit from bootstrap, and
+  rerunning the normal command resumes an interrupted bootstrap or pivot.
+
+## Repository configuration
+
+Repository-owned cluster names, paths, chart versions, provider manifests, and
+teardown targets live in [`bootstrap.toml`](../bootstrap.toml). The binary
+retains generic fallback defaults and sequence-level contracts. It reads
+`./bootstrap.toml` by default; `BOOTSTRAP_CONFIG` selects another path.
+
+Runtime environment variables take precedence where an override exists.
+`mise run validate` parses the file and cross-checks its chart pins and
+teardown names against the Git manifests. Renovate updates the annotated chart
+pins together with their declarative counterparts. See
+[Dependencies](./dependencies.md).
+
+## Bootstrap and pivot controls
+
+| Variable | Default | Used by |
 |---|---|---|
-| `KNR_OPS_PROFILE` | positional arg, then `aws` | profile selection |
-| `REGISTRY_PORT` | `5001` | local-host: host port of the local OCI registry |
-| `REGISTRY_READY_RETRIES` | `120` | local-host: registry readiness poll attempts |
-| `LOCAL_RECONCILE_TIMEOUT` | `15m` | local-host: management/workload reconciliation waits |
-| `CONTAINER_ENGINE` | auto (`docker`, else `podman`) | kind/container engine selection |
-| `GIT_REPO_URL` | — (required, aws) | Flux Git source for the management cluster |
-| `GITHUB_TOKEN` | — (required, aws) | PAT with read access to the repo |
-| `GITHUB_USER` | `git` | Git clone user for the Flux secret |
-| `AGE_KEY_FILE` | `age.agekey` | SOPS age private key loaded into the `sops-age` secret |
-| `AGE_PUBLIC_KEY` | derived from `AGE_KEY_FILE` | `create`-mode public key override |
-| `OCI_REPOSITORY` / `OCI_TAG` | `knr-ops` / `latest` | local-host: OCI artifact name |
-| `BOOTSTRAP_PIVOT` | `1` | `0` skips the pivot; kind stays the management cluster |
-| `MGMT_KUBECONFIG` | `~/.kube/knr-ops-mgmt.yaml` | exported management kubeconfig |
-| `MGMT_READY_TIMEOUT` | `40m` aws / `15m` local-host | management cluster provisioning wait |
-| `MGMT_POLL_INTERVAL` | `10` (seconds) | management cluster provisioning poll |
-| `BOOTSTRAP_KUBECONTEXT` | `kind-mgmt` | context the pivot runs from |
-| `PIVOT_SKIP_DELETE` | `0` | `1` keeps the kind bootstrap cluster for inspection |
+| `BOOTSTRAP_CONFIG` | `./bootstrap.toml` | Repository configuration path |
+| `KNR_OPS_PROFILE` | positional profile, then `bootstrap.default-environment` (`aws` checked in) | Environment selection |
+| `REGISTRY_PORT` | `5001` | Local-host registry host port |
+| `REGISTRY_READY_RETRIES` | `120` | Local-host registry readiness attempts |
+| `LOCAL_RECONCILE_TIMEOUT` | `15m` | Local-host management and workload reconciliation waits |
+| `CONTAINER_ENGINE` | auto-detect Docker, then Podman | kind and registry engine |
+| `GIT_REPO_URL` | required for `aws` | Management Flux Git source |
+| `GITHUB_TOKEN` | required for `aws` | PAT with read access to the repository |
+| `GITHUB_USER` | `git` | Basic-auth username paired with the PAT |
+| `AGE_KEY_FILE` | `age.agekey` | SOPS age private key loaded into `sops-age` |
+| `AGE_PUBLIC_KEY` | derived from `AGE_KEY_FILE` | Public key override during secret creation |
+| `OCI_REPOSITORY` / `OCI_TAG` | `knr-ops` / `latest` | Local-host OCI artifact name |
+| `BOOTSTRAP_PIVOT` | `1` | Any value other than literal `1` skips pivot |
+| `MGMT_KUBECONFIG` | `~/.kube/knr-ops-mgmt.yaml` | Exported management kubeconfig for native runs |
+| `MGMT_READY_TIMEOUT` | `40m` for aws, `15m` for local-host | Management cluster provisioning wait |
+| `MGMT_POLL_INTERVAL` | `10` seconds | Management cluster provisioning poll |
+| `BOOTSTRAP_KUBECONTEXT` | config value `kind-mgmt` | Source context required by pivot |
+| `PIVOT_SKIP_DELETE` | `0` | Literal `1` keeps kind after a successful pivot |
 
-## What a run does
+The toolbox runtime adds three contracts:
 
-1. **Preflight**: profile validation, required tools (`kind`, `helm`,
-   `kubectl`, `clusterctl`, `mise` on both profiles; `flux` and `curl`
-   additionally on local-host), container engine detection, and (aws) the
-   GitHub repo/branch/token checks and age key file validation.
-2. **Bootstrap** the `mgmt` kind cluster: local registry (local-host), Flux
-   Operator install, `flux-github-pat` + `sops-age` secrets (aws) or the
-   initial OCI artifact publish (local-host), `FluxInstance` sync handoff,
-   and the reconciliation watch.
-3. **Pivot** (default; `BOOTSTRAP_PIVOT=0` opts out): wait for the
-   self-managed management cluster (provisioned by CAPI from
-   `mgmt/<env>/clusters/management/`), export its kubeconfig, imperatively
-   install cert-manager + the CAPI operator + provider CRs on the target at
-   the same versions as the Git HelmReleases, suspend Flux in kind,
-   `clusterctl move`, unpause the moved Clusters, seed Flux on the target,
-   and delete the kind bootstrap cluster.
+- `KNR_TOOLBOX=1` enables internal kind networking and disables host-only CAPD
+  endpoint rewrites.
+- `ENGINE_SOCK` names the engine socket path as seen by the daemon. The wrapper
+  resolves it for Docker Desktop, Docker contexts, rootful or rootless Podman,
+  and `podman machine`.
+- `KUBECONFIG` must name one writable file, not a colon-separated list. The
+  wrapper uses `/workspace/.kube/kind.yaml`.
 
-If any phase fails, fix the cause and rerun: the bootstrap steps are
-rerun-safe, an existing healthy kind cluster is reused (a cluster whose
-kubeconfig context is gone can be recovered with
-`kind export kubeconfig --name mgmt` before rerunning), and
-`clusterctl move` is re-runnable. Recovery details and the never-delete-moved-objects
-warning are in [Operations: pivot recovery](./operations.md#pivot-recovery).
+The container reaches the local registry at `knr-registry:5000`. Its
+`/root/.kube` mount makes the management kubeconfig persist on the host as
+`./.kube/knr-ops-mgmt.yaml`. The wrapper's environment allowlist and override
+limitations are documented in [Operations](./operations.md#toolbox-container-primary-interface).
 
-## Parity status and script retirement
+## What bootstrap and pivot do
 
-The shell scripts stay in the repository until the binary has completed full
-real runs per profile; they are removed in a follow-up once both parity gates
-pass. `mise run bootstrap` and `mise run pivot` still invoke the scripts;
-run the binary from `bootstrap-rs/` until the switchover. Chart versions the
-binary installs imperatively are pinned as Renovate-annotated constants in
-`bootstrap-rs/src/main.rs` and grouped with their manifest counterparts (see
-[Dependencies](./dependencies.md)).
+1. **Preflight:** validate the environment and required tools, select a running
+   container engine, and perform the AWS GitHub/token/age-key checks when
+   needed. Native runs require `kind`, `helm`, `kubectl`, `clusterctl`, and
+   `mise`; local-host also requires `flux` and `curl`.
+2. **Bootstrap kind:** create or reuse `mgmt`, start the local registry for
+   local-host, install the Flux Operator, create the AWS Git and SOPS secrets
+   or publish the local OCI artifact, install the `FluxInstance`, and watch
+   reconciliation.
+3. **Pivot by default:** wait for the CAPI-managed management cluster, export
+   its kubeconfig, install cert-manager, the CAPI operator, and provider CRs at
+   the versions declared in `bootstrap.toml`, suspend Flux in kind, run
+   `clusterctl move`, unpause the moved clusters, seed Flux on the target, and
+   delete kind after the safety checks pass.
 
-## Roadmap
+If a phase fails, fix the cause and rerun the same command. `clusterctl move`
+is re-runnable, and kind remains authoritative until the final deletion.
+Recovery details and the warning against deleting moved CAPI objects are in
+[Pivot recovery](./operations.md#pivot-recovery).
 
-- [#100](https://github.com/polarsquad/knr-ops/issues/100): port `teardown.sh`
-  into the CLI (post-pivot teardown semantics resolved as part of it).
-- [#98](https://github.com/polasquad/knr-ops/issues/98): externalize
-  knr-ops-specific constants (cluster names, sync paths, chart pins) from
-  compiled-in values into a `bootstrap.toml` owned by the repository, so the
-  binary becomes a generic bootstrap engine with knr-ops as its first
-  consumer.
+## Teardown controls and behavior
+
+```sh
+knr-bootstrap teardown [PROFILE]
+```
+
+| Variable | Default | Effect |
+|---|---|---|
+| `AWS_ONLY` | `0` | Literal `1` skips Kubernetes steps and runs only the AWS orphan sweep; invalid with `local-host` |
+| `FORCE_KIND_DELETE` | `0` | Literal `1` removes the controller host even when CAPI cluster deletion was not confirmed |
+| `CLUSTER_DELETE_TIMEOUT` | `1200` seconds | AWS workload-cluster deletion wait |
+| `PROVIDER_DELETE_TIMEOUT` | `300` seconds | CAPI provider deletion wait |
+| `MGMT_KUBECONFIG` | `~/.kube/knr-ops-mgmt.yaml` | Post-pivot controller-host kubeconfig |
+
+Teardown checks required tools before mutation:
+
+| Mode | Required tools |
+|---|---|
+| `local-host` | `kind`, `kubectl`; `AWS_ONLY=1` is rejected |
+| normal `aws` | `kind`, `helm`, `kubectl`, `xargs`; AWS CLI is optional and its absence skips the orphan sweep |
+| `AWS_ONLY=1` | AWS CLI only |
+
+Teardown discovers where the CAPI controllers run: the pre-pivot kind cluster,
+the post-pivot self-managed management cluster, or no reachable cluster. It
+then preserves the shell implementation's reverse-order and best-effort
+cleanup semantics.
+
+- `local-host`: suspend the workload Kustomization, delete the CAPD workload
+  cluster and wait for its containers to disappear, remove kind or the
+  self-managed management containers, then remove the local registry.
+- `aws`: suspend Flux, delete and wait for workload CAPI clusters, run the AWS
+  orphan sweep for both workloads and the self-managed management cluster,
+  remove CAPI providers and bootstrap Helm releases when the controller host is
+  still reachable, and enforce the controller-host deletion guard. The sweep
+  covers pod identity associations, nodegroups, EKS clusters, RDS, CAPA-tagged
+  VPC resources, versioned S3 buckets, IAM roles and users, and the
+  `clusterawsadm` CloudFormation stack.
+
+`AWS_ONLY=1` is the recovery path when only AWS cleanup remains. A missing tool
+fails preflight before mutation; in the normal AWS path, a missing AWS CLI is
+reported and the orphan sweep is skipped rather than misclassified as an
+empty account.
+
+## Entry-point and parity status
+
+`mise run bootstrap`, `mise run pivot`, and `mise run teardown` now invoke
+`scripts/toolbox-run.sh`, which runs this CLI in the toolbox container. The
+`pivot` task is a named resume path for the rerun-safe default lifecycle; it
+does not select a separate CLI subcommand.
+
+The three shell scripts remain as native reference and fallback paths until
+full parity runs pass for both environments. Local-host bootstrap, pivot, and
+post-pivot teardown have completed parity runs. AWS full-parity runs still gate
+script retirement. At this revision no semver tag has run the release workflow,
+and no Podman-host acceptance run is recorded.

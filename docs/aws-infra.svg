@@ -31,7 +31,7 @@
   <rect x="64" y="150" width="440" height="330" rx="14" fill="#131320" stroke="#3d3d55" stroke-width="1.5"/>
   <rect x="80" y="158" width="408" height="5" rx="2.5" fill="#85c7bb"/>
   <text x="284" y="198" text-anchor="middle" font-family="DejaVu Sans" font-size="25" font-weight="bold" fill="#85c7bb">Management Cluster</text>
-  <text x="284" y="222" text-anchor="middle" font-family="DejaVu Sans" font-size="16" fill="#8f8f8f">(local kind cluster)</text>
+  <text x="284" y="222" text-anchor="middle" font-family="DejaVu Sans" font-size="16" fill="#8f8f8f">(self-managed EKS &#183; post-pivot)</text>
   <!-- flux glyph -->
   <g transform="translate(122,262)">
     <path d="M0,-18 L15,0 L0,18 L-15,0 Z" fill="#85c7bb"/>

@@ -15,7 +15,7 @@
   <rect width="1600" height="1150" fill="#0f0f0f"/>
 
   <!-- ===== title block ===== -->
-  <text x="800" y="60" text-anchor="middle" font-family="DejaVu Sans" font-size="40" font-weight="bold" fill="#ff78c9">knr-ops &#183; local-host Profile &#183; Same Chain, Zero Cloud</text>
+  <text x="800" y="60" text-anchor="middle" font-family="DejaVu Sans" font-size="40" font-weight="bold" fill="#ff78c9">knr-ops &#183; local-host Environment &#183; Same Chain, Zero Cloud</text>
   <text x="800" y="96" text-anchor="middle" font-family="DejaVu Sans" font-size="19" fill="#8f8f8f">Flux + CAPI/CAPD &#183; local OCI registry replaces GitHub &#183; the full GitOps + CAPI lifecycle on one laptop</text>
 
   <!-- ===== section headers ===== -->
@@ -25,7 +25,7 @@
   <!-- ===== connections (behind boxes) ===== -->
   <line x1="612" y1="256" x2="508" y2="256" stroke="#ab9fd6" stroke-width="2.5" marker-end="url(#arrow-purple)"/>
   <text x="561" y="222" text-anchor="middle" font-family="DejaVu Sans" font-size="17" font-weight="bold" fill="#fafafa">2. syncs</text>
-  <text x="561" y="244" text-anchor="middle" font-family="DejaVu Sans Mono" font-size="16" fill="#85c7bb">mgmt/local-host/</text>
+  <text x="561" y="244" text-anchor="middle" font-family="DejaVu Sans Mono" font-size="11" fill="#85c7bb">mgmt/local-host/</text>
   <path d="M284,484 V594" fill="none" stroke="#85c7bb" stroke-width="2.5" stroke-dasharray="7,6" marker-end="url(#arrow-teal)"/>
   <text x="470" y="530" text-anchor="middle" font-family="DejaVu Sans" font-size="16" fill="#d6d6d6">3. provisions CAPD cluster &#183; installs Flux via <tspan font-family="DejaVu Sans Mono" fill="#85c7bb">flux-apps</tspan></text>
   <path d="M820,484 V560 H560 V594" fill="none" stroke="#ab9fd6" stroke-width="2.5" stroke-dasharray="7,6" marker-end="url(#arrow-purple)"/>
@@ -35,7 +35,7 @@
   <rect x="64" y="150" width="440" height="330" rx="14" fill="#131320" stroke="#3d3d55" stroke-width="1.5"/>
   <rect x="80" y="158" width="408" height="5" rx="2.5" fill="#85c7bb"/>
   <text x="284" y="198" text-anchor="middle" font-family="DejaVu Sans" font-size="25" font-weight="bold" fill="#85c7bb">Management Cluster</text>
-  <text x="284" y="222" text-anchor="middle" font-family="DejaVu Sans" font-size="16" fill="#8f8f8f">(local kind cluster &#183; Flux Operator + FluxInstance)</text>
+  <text x="284" y="222" text-anchor="middle" font-family="DejaVu Sans" font-size="16" fill="#8f8f8f">(self-managed CAPD &#183; post-pivot)</text>
   <!-- flux glyph -->
   <g transform="translate(122,262)">
     <path d="M0,-18 L15,0 L0,18 L-15,0 Z" fill="#85c7bb"/>
@@ -148,9 +148,9 @@
   <!-- step 1 -->
   <circle cx="1140" cy="208" r="15" fill="#ab9fd6"/>
   <text x="1140" y="214" text-anchor="middle" font-family="DejaVu Sans" font-size="15" font-weight="bold" fill="#0f0f0f">1</text>
-  <text x="1168" y="204" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">Bootstrap creates kind + registry;</text>
-  <text x="1168" y="230" font-family="DejaVu Sans Mono" font-size="16" fill="#ab9fd6">oci-push<tspan font-family="DejaVu Sans" font-size="17" fill="#d6d6d6"> publishes </tspan>mgmt/<tspan font-family="DejaVu Sans" font-size="17" fill="#d6d6d6"> and</tspan></text>
-  <text x="1168" y="256" font-family="DejaVu Sans Mono" font-size="16" fill="#ab9fd6">workload/<tspan font-family="DejaVu Sans" font-size="17" fill="#d6d6d6"> as </tspan>knr-ops:latest<tspan font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">.</tspan></text>
+  <text x="1168" y="204" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">Toolbox creates kind + registry;</text>
+  <text x="1168" y="230" font-family="DejaVu Sans Mono" font-size="15.5" fill="#ab9fd6">oci-push publishes mgmt/ and</text>
+  <text x="1168" y="256" font-family="DejaVu Sans Mono" font-size="15.5" fill="#ab9fd6">workload/ as knr-ops:latest.</text>
   <text x="1168" y="282" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">No GitHub PAT, no AWS account.</text>
   <line x1="1122" y1="316" x2="1504" y2="316" stroke="#34344a" stroke-width="1.2"/>
 
@@ -200,6 +200,6 @@
   <text x="1412" y="1020" font-family="DejaVu Sans Mono" font-size="14" fill="#d6d6d6">app</text>
 
   <!-- ===== footer ===== -->
-  <text x="800" y="1102" text-anchor="middle" font-family="DejaVu Sans" font-size="17" fill="#8f8f8f">The identical chain as the aws profile: management plane provisions, workload plane reconciles.</text>
-  <text x="800" y="1128" text-anchor="middle" font-family="DejaVu Sans" font-size="17" fill="#8f8f8f">Swap CAPA for CAPD and GitHub for a local registry: the pattern is unchanged.</text>
+  <text x="800" y="1102" text-anchor="middle" font-family="DejaVu Sans" font-size="17" fill="#8f8f8f">After workload readiness, pivot moves CAPI into local-management and deletes kind.</text>
+  <text x="800" y="1128" text-anchor="middle" font-family="DejaVu Sans" font-size="17" fill="#8f8f8f">Same chain as aws: CAPD and a local registry replace CAPA and GitHub.</text>
 </svg>

@@ -19,7 +19,7 @@
 
   <!-- ===== title block ===== -->
   <text x="800" y="60" text-anchor="middle" font-family="DejaVu Sans" font-size="40" font-weight="bold" fill="#ff78c9">knr-ops &#183; Zarf Air-Gap Bundle &#183; Radio Off, Chain Intact</text>
-  <text x="800" y="96" text-anchor="middle" font-family="DejaVu Sans" font-size="19" fill="#8f8f8f">Zarf packages the local-host profile &#183; build connected, deploy with no internet &#183; two registries, one package</text>
+  <text x="800" y="96" text-anchor="middle" font-family="DejaVu Sans" font-size="19" fill="#8f8f8f">Zarf packages the local-host environment &#183; build connected, deploy with no internet &#183; two registries, one package</text>
 
   <!-- ===== section headers ===== -->
   <text x="64" y="138" font-family="DejaVu Sans" font-size="20" font-weight="bold" fill="#fafafa">CONNECTED SIDE (build)</text>
@@ -66,8 +66,8 @@
   <!-- zarf substrate chip -->
   <rect x="88" y="576" width="452" height="128" rx="10" fill="#cfa07e" fill-opacity="0.10" stroke="#cfa07e" stroke-opacity="0.55" stroke-width="1.2"/>
   <text x="314" y="604" text-anchor="middle" font-family="DejaVu Sans" font-size="16.5" font-weight="bold" fill="#cfa07e">Zarf owns the substrate</text>
-  <text x="106" y="632" font-family="DejaVu Sans" font-size="15" fill="#d6d6d6">&#8226; internal registry <tspan font-family="DejaVu Sans Mono" font-size="14" fill="#cfa07e">127.0.0.1:31999</tspan> + agent (image rewrite)</text>
-  <text x="106" y="658" font-family="DejaVu Sans" font-size="15" fill="#d6d6d6">&#8226; cert-manager &#183; flux-operator &#183; CAPI core + CAPD + CAAPH</text>
+  <text x="106" y="632" font-family="DejaVu Sans" font-size="15" fill="#d6d6d6">&#8226; registry 127.0.0.1:31999 + rewrite agent</text>
+  <text x="106" y="658" font-family="DejaVu Sans" font-size="15" fill="#d6d6d6">&#8226; cert-manager &#183; Flux &#183; CAPI/CAPD/CAAPH</text>
   <text x="106" y="684" font-family="DejaVu Sans" font-size="15" fill="#d6d6d6">&#8226; publishes config artifact into the internal registry</text>
   <!-- flux glyph -->
   <g transform="translate(130,760)">
@@ -139,14 +139,14 @@
   <circle cx="1140" cy="338" r="15" fill="#ab9fd6"/>
   <text x="1140" y="344" text-anchor="middle" font-family="DejaVu Sans" font-size="15" font-weight="bold" fill="#0f0f0f">2</text>
   <text x="1168" y="334" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">The bundle crosses the gap. Offline:</text>
-  <text x="1168" y="360" font-family="DejaVu Sans Mono" font-size="15.5" fill="#ab9fd6">docker load<tspan font-family="DejaVu Sans" font-size="17" fill="#d6d6d6"> archives, create kind</tspan></text>
+  <text x="1168" y="360" font-family="DejaVu Sans Mono" font-size="15.5" fill="#ab9fd6">docker load archives; create kind</text>
   <text x="1168" y="386" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">mgmt cluster, seed knr-registry.</text>
   <line x1="1122" y1="420" x2="1504" y2="420" stroke="#34344a" stroke-width="1.2"/>
 
   <!-- step 3 -->
   <circle cx="1140" cy="468" r="15" fill="#cfa07e"/>
   <text x="1140" y="474" text-anchor="middle" font-family="DejaVu Sans" font-size="15" font-weight="bold" fill="#0f0f0f">3</text>
-  <text x="1168" y="464" font-family="DejaVu Sans Mono" font-size="16" fill="#cfa07e">zarf init<tspan font-family="DejaVu Sans" font-size="17" fill="#d6d6d6"> + </tspan>zarf package deploy<tspan font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">:</tspan></text>
+  <text x="1168" y="464" font-family="DejaVu Sans Mono" font-size="16" fill="#cfa07e">zarf init + zarf package deploy:</text>
   <text x="1168" y="490" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">internal registry + agent, substrate</text>
   <text x="1168" y="516" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">components; agent rewrites every</text>
   <text x="1168" y="542" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">image ref to the internal registry.</text>
@@ -165,7 +165,7 @@
   <circle cx="1140" cy="780" r="15" fill="#d693b1"/>
   <text x="1140" y="786" text-anchor="middle" font-family="DejaVu Sans" font-size="15" font-weight="bold" fill="#0f0f0f">5</text>
   <text x="1168" y="776" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">Workload Flux pulls config + charts</text>
-  <text x="1168" y="802" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">from <tspan font-family="DejaVu Sans Mono" font-size="16" fill="#d693b1">knr-registry</tspan>; <tspan font-family="DejaVu Sans Mono" font-size="16" fill="#fafafa">podinfo</tspan> runs</text>
+  <text x="1168" y="802" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">from knr-registry; podinfo runs</text>
   <text x="1168" y="828" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">from pre-loaded images. Zero pulls,</text>
   <text x="1168" y="854" font-family="DejaVu Sans" font-size="17" fill="#d6d6d6">zero public packets.</text>
   <line x1="1122" y1="888" x2="1504" y2="888" stroke="#34344a" stroke-width="1.2"/>

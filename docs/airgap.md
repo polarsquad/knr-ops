@@ -214,6 +214,10 @@ daemon): `CLUSTER_NAME`, `AIRGAP_CLUSTER_NAME`, `WORKLOAD_REGISTRY_HOST`,
 
 ## Known limitations / follow-ups
 
+- The `knr-ops-toolbox` image is not included in `airgap/images.txt` or the
+  current Zarf package. Offline deployment still uses the dedicated
+  `airgap/scripts/` flow and its pinned tool and image inventory; the connected
+  toolbox lifecycle does not replace that flow yet.
 - **capi-operator is omitted** in the gap. Provider upgrades ride package
   rebuilds. Acceptable for the prototype.
 - **kind stays** (macOS host). On Linux targets `zarf init --components=k3s`
