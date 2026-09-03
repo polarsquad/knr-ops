@@ -23,6 +23,18 @@ resources. There is no app source code here, only declarative infrastructure.
 - `mgmt/local-host/`: the local-host management variant (kind-based).
   Same layout as `mgmt/aws/` (`clusters/docker`, `capi-providers/`,
   `addons/`, `infrastructure/`) with no cloud dependencies.
+- `mgmt/local-talos/`: the single-node Talos management variant (issue
+  #105). Same component layout as `mgmt/aws/` minus addons
+  (`infrastructure/`, `capi-providers/`, `clusters/management/`), synced
+  from the GitHub GitRepository source like `mgmt/aws`, NOT the laptop OCI
+  registry (a physical machine cannot reach knr-registry). Providers are
+  Talos + Tinkerbell (CABPT/CACPPT from sidero-community releases, CAPT)
+  instead of CAPD; the cluster definition is imperative (explicit
+  controlPlaneRef, no ClusterClass) with committed site-specific values
+  (control plane endpoint IP, Tinkerbell Hardware name). Scope fence:
+  management-only; no `addons/` (Talos ships its own CNI, no
+  HelmChartProxy consumers). Bootstrap/pivot wiring and docs land with
+  the rest of the #105 series.
 - `workload/`: synced by each WORKLOAD cluster's Flux.
   - `base/`: ACK controllers and S3/RDS/IAM custom resources.
   - `<region>-01/`: per-cluster overlays pointing at `../base`.
