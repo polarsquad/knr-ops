@@ -1,0 +1,29 @@
+# The Talos management cluster: created by CAPT in the kind bootstrap
+# cluster, moved into itself by `clusterctl move` (knr-bootstrap pivot), and
+# from then on reconciled from GitHub by the Flux instance running inside it.
+# Health check gates on the Cluster's Available condition (v1beta2 serves
+# Available, not Ready).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: talos-management-cluster
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 2m
+  timeout: 5m
+  prune: true
+  wait: false
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./mgmt/local-talos/clusters/management
+  dependsOn:
+    - name: cacppt-system
+    - name: capt-system
+    - name: cabpt-system
+  healthChecks:
+    - apiVersion: cluster.x-k8s.io/v1beta2
+      kind: Cluster
+      name: local-talos-management
+      namespace: default

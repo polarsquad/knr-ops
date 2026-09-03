@@ -1,0 +1,42 @@
+# Talos/Tinkerbell variant of the CAPI core + kubeadm providers. The kubeadm
+# bootstrap/control-plane providers ride along as CAPI defaults (no Talos
+# cluster uses them here, but dropping them shrinks the clusterctl move
+# inventory and is not worth the divergence).
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: CoreProvider
+metadata:
+  name: cluster-api
+  namespace: capi-system
+spec:
+  version: "v1.14.0"
+  deployment:
+    containers:
+      - name: manager
+        args:
+          "--feature-gates": "ClusterTopology=true"
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: BootstrapProvider
+metadata:
+  name: kubeadm
+  namespace: capi-system
+spec:
+  version: "v1.14.0"
+  deployment:
+    containers:
+      - name: manager
+        args:
+          "--feature-gates": "ClusterTopology=true"
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: ControlPlaneProvider
+metadata:
+  name: kubeadm
+  namespace: capi-system
+spec:
+  version: "v1.14.0"
+  deployment:
+    containers:
+      - name: manager
+        args:
+          "--feature-gates": "ClusterTopology=true"

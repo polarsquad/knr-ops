@@ -1,0 +1,13 @@
+# Talos control-plane provider. fetchConfig is mandatory (same stale-org
+# default as cabpt-system/provider.yaml); version pairs with the /releases
+# URL per the CAPI operator GitHub-release contract.
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: ControlPlaneProvider
+metadata:
+  name: talos
+  namespace: cacppt-system
+spec:
+  # renovate: datasource=github-releases depName=sidero-community/cluster-api-control-plane-provider-talos
+  version: "v0.6.4"
+  fetchConfig:
+    url: "https://github.com/sidero-community/cluster-api-control-plane-provider-talos/releases"

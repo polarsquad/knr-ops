@@ -1,0 +1,16 @@
+# Talos bootstrap provider. fetchConfig is mandatory: without it the CAPI
+# operator's embedded default (from clusterctl, CAPI v1.12.10 embedded in
+# operator 0.28.0) points at the STALE siderolabs org; the maintained line
+# lives under sidero-community, where all fork work was upstreamed (#105).
+# version + fetchConfig.url pairing is the operator contract for GitHub
+# release sources: URL is the /releases page, version picks the tag.
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: BootstrapProvider
+metadata:
+  name: talos
+  namespace: cabpt-system
+spec:
+  # renovate: datasource=github-releases depName=sidero-community/cluster-api-bootstrap-provider-talos
+  version: "v0.7.6"
+  fetchConfig:
+    url: "https://github.com/sidero-community/cluster-api-bootstrap-provider-talos/releases"

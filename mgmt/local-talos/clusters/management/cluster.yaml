@@ -1,0 +1,90 @@
+# Single-node Talos management cluster for the local-talos environment (#105).
+#
+# Shape: imperative (explicit controlPlaneRef), NOT ClusterClass topology —
+# Tinkerbell hardware selection is operator/site-specific and one machine
+# carries the whole management plane.
+#
+# SITE-SPECIFIC VALUES (edit before deploying to your metal; the repo
+# convention for management clusters is committed site values, like
+# mgmt/aws/clusters/eu-north-1/management/):
+#   spec.controlPlaneEndpoint.host       - the machine's stable IP
+#   TinkerbellMachineTemplate hardwareName - your Tinkerbell Hardware CR name
+#
+# The installer image is deliberately NOT pinned here: CAPT resolves it from
+# the Hardware (status.installerImage) and CABPT injects it as
+# machine.install.image, so hardware-specific system extensions arrive
+# without hand-maintained image refs (#105).
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
+metadata:
+  name: local-talos-management
+  namespace: default
+  labels:
+    knr-ops.polarsquad.com/environment: local-talos
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 192.168.0.0/16
+    serviceDomain: cluster.local
+    services:
+      cidrBlocks:
+        - 10.128.0.0/12
+  controlPlaneEndpoint:
+    host: 192.168.1.50
+    port: 6443
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: TalosControlPlane
+    name: local-talos-management
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: TinkerbellCluster
+    name: local-talos-management
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: TinkerbellCluster
+metadata:
+  name: local-talos-management
+  namespace: default
+spec: {}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: TalosControlPlane
+metadata:
+  name: local-talos-management
+  namespace: default
+spec:
+  replicas: 1
+  version: v1.36.0
+  infrastructureTemplate:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: TinkerbellMachineTemplate
+    name: local-talos-management
+  controlPlaneConfig:
+    controlplane:
+      generateType: controlplane
+      # Pinned so a provider upgrade does not silently change the generated
+      # machine config (docs/extending.md Talos rule; lives at
+      # controlPlaneConfig.controlplane.talosVersion in the v1beta1 API,
+      # not at the spec root).
+      talosVersion: v1.14
+      strategicPatches:
+        # One machine carries the whole management plane (#105).
+        - |
+          cluster:
+            allowSchedulingOnControlPlanes: true
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: TinkerbellMachineTemplate
+metadata:
+  name: local-talos-management
+  namespace: default
+spec:
+  template:
+    spec:
+      # Direct hardware binding: the single management machine by its
+      # Tinkerbell Hardware CR name. hardwareAffinity selectors would also
+      # work but are unnecessary for exactly one known machine.
+      hardwareName: talos-mgmt-01
