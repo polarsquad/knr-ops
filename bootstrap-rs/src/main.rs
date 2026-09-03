@@ -2659,14 +2659,14 @@ mod tests {
         // convenience, not a bootstrap dependency.
         let base = ["kind", "helm", "kubectl", "clusterctl", "mise"];
         assert_eq!(
-            required_tools(&repo_config().environment("aws").unwrap()),
+            required_tools(repo_config().environment("aws").unwrap()),
             base
         );
         assert_eq!(
-            required_tools(&repo_config().environment("local-talos").unwrap()),
+            required_tools(repo_config().environment("local-talos").unwrap()),
             base
         );
-        let local = required_tools(&repo_config().environment("local-host").unwrap());
+        let local = required_tools(repo_config().environment("local-host").unwrap());
         assert!(local.len() > base.len());
         assert!(local.contains(&"flux"));
         assert!(local.contains(&"curl"));
