@@ -90,7 +90,7 @@ run = "scripts/toolbox-run.sh pivot"
 [tasks.mgmt-kubeconfig]
 description = "Export the management-cluster kubeconfig to ~/.kube/knr-ops-mgmt.yaml"
 run = '''
-MGMT_CLUSTER="${MGMT_CLUSTER:-$([ "${KNR_OPS_PROFILE:-aws}" = local-host ] && echo local-management || echo eu-north-1-management)}"
+MGMT_CLUSTER="${MGMT_CLUSTER:-$(case "${KNR_OPS_PROFILE:-aws}" in local-host) echo local-management;; local-talos) echo local-talos-management;; *) echo eu-north-1-management;; esac)}"
 MGMT_KUBECONFIG="${MGMT_KUBECONFIG:-$HOME/.kube/knr-ops-mgmt.yaml}"
 clusterctl get kubeconfig "$MGMT_CLUSTER" -n default > "$MGMT_KUBECONFIG"
 chmod 600 "$MGMT_KUBECONFIG"

@@ -20,7 +20,7 @@
 mod config;
 mod teardown;
 
-use config::{BootstrapConfig, Environment};
+use config::{BootstrapConfig, Environment, SyncSource};
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -401,21 +401,31 @@ fn unpause_patch() -> serde_json::Value {
     json!({ "spec": { "paused": false } })
 }
 
-/// Tools required on PATH for the given profile (local-host needs the
-/// reconciliation-watch and oci-push tools; the environment names are the
-/// binary's sequence contract, issue #98 decision 3).
-fn required_tools(is_local: bool) -> Vec<&'static str> {
+/// Tools required on PATH for the given environment's sync surface (the
+/// environment names are the binary's sequence contract, issue #98
+/// decision 3; the extras are the sync source's, issue #105 scope item 6).
+fn required_tools(env: &Environment) -> Vec<&'static str> {
     // The binary owns the HTTP checks the scripts used curl for. curl
-    // stays required for local-host anyway: the mise oci-push task shells
-    // out to curl for its registry availability check. flux is exercised
-    // by the local-host reconciliation watch (Step 5). clusterctl and mise
-    // are pivot tools (clusterctl get kubeconfig / describe / move; mise
-    // aws-credentials / oci-push) required on BOTH profiles.
+    // stays required for oci-sync environments anyway: the mise oci-push
+    // task shells out to curl for its registry availability check. flux
+    // is exercised by the local-host reconciliation watch (Step 5).
+    // clusterctl and mise are pivot tools (clusterctl get kubeconfig /
+    // describe / move; mise aws-credentials / oci-push) required on
+    // EVERY environment. talosctl is deliberately absent for local-talos:
+    // the machine is remote and talosctl is an operator convenience, not
+    // a bootstrap dependency.
     let mut tools = vec!["kind", "helm", "kubectl", "clusterctl", "mise"];
-    if is_local {
+    if env.sync == SyncSource::Oci {
         tools.extend(["flux", "curl"]);
     }
     tools
+}
+
+/// Whether the GitHub/age preflight (PAT, repo branch probe, sops age
+/// key) must run: gated on the sync source (issue #105 scope item 6),
+/// not the profile name. AWS-only credential steps stay profile-gated.
+fn runs_github_preflight(cfg: &Config) -> bool {
+    cfg.environment.sync == SyncSource::Github
 }
 
 // ── Process helpers ───────────────────────────────────────────────────────────
@@ -554,7 +564,7 @@ impl Drop for ChildGuard {
 
 // ── Preflight ─────────────────────────────────────────────────────────────────
 
-struct AwsContext {
+struct GithubContext {
     git_repo_url: String,
     github_user: String,
     github_token: String,
@@ -565,12 +575,12 @@ struct AwsContext {
 struct Preflight {
     engine: String,
     engine_sock: String,
-    aws: Option<AwsContext>,
+    github: Option<GithubContext>,
 }
 
 async fn preflight_checks(cfg: &Config, http: &reqwest::Client) -> Result<Preflight> {
     // Report every missing tool at once instead of failing on the first.
-    let missing: Vec<&str> = required_tools(cfg.is_local())
+    let missing: Vec<&str> = required_tools(&cfg.environment)
         .into_iter()
         .filter(|t| !command_exists(t))
         .collect();
@@ -578,8 +588,8 @@ async fn preflight_checks(cfg: &Config, http: &reqwest::Client) -> Result<Prefli
         bail!("missing required tools in PATH: {}", missing.join(", "));
     }
 
-    let aws = if cfg.profile == "aws" {
-        Some(preflight_aws(cfg, http).await?)
+    let github = if runs_github_preflight(cfg) {
+        Some(preflight_github(cfg, http).await?)
     } else {
         None
     };
@@ -643,11 +653,11 @@ async fn preflight_checks(cfg: &Config, http: &reqwest::Client) -> Result<Prefli
     Ok(Preflight {
         engine,
         engine_sock,
-        aws,
+        github,
     })
 }
 
-async fn preflight_aws(cfg: &Config, http: &reqwest::Client) -> Result<AwsContext> {
+async fn preflight_github(cfg: &Config, http: &reqwest::Client) -> Result<GithubContext> {
     let github_token = cfg
         .github_token
         .clone()
@@ -714,7 +724,7 @@ async fn preflight_aws(cfg: &Config, http: &reqwest::Client) -> Result<AwsContex
             )
         })?;
 
-    Ok(AwsContext {
+    Ok(GithubContext {
         git_repo_url,
         github_user,
         github_token,
@@ -1121,9 +1131,9 @@ async fn install_flux_operator(
     run("helm", &arg_refs).await
 }
 
-async fn create_aws_secrets(
+async fn create_github_secrets(
     repo: &BootstrapConfig,
-    aws: &AwsContext,
+    github: &GithubContext,
     kubeconfig: Option<&str>,
 ) -> Result<()> {
     // Both secrets are applied as manifests on stdin: idempotent on rerun,
@@ -1142,8 +1152,8 @@ async fn create_aws_secrets(
             "metadata": { "name": pat_secret, "namespace": flux_ns },
             "type": "Opaque",
             "stringData": {
-                "username": aws.github_user,
-                "password": aws.github_token,
+                "username": github.github_user,
+                "password": github.github_token,
             },
         }),
     )
@@ -1178,7 +1188,7 @@ async fn create_aws_secrets(
             "metadata": { "name": sops_secret, "namespace": flux_ns },
             "type": "Opaque",
             "stringData": {
-                format!("keys.{}.agekey", aws.age_pubkey): aws.age_key_content,
+                format!("keys.{}.agekey", github.age_pubkey): github.age_key_content,
             },
         }),
     )
@@ -1187,7 +1197,7 @@ async fn create_aws_secrets(
 
 async fn install_flux_instance(
     cfg: &Config,
-    aws: Option<&AwsContext>,
+    github: Option<&GithubContext>,
     registry_config: &Path,
     kubeconfig: Option<&str>,
 ) -> Result<bool> {
@@ -1234,13 +1244,13 @@ async fn install_flux_instance(
         args.extend(["--kubeconfig".into(), kc.to_string()]);
     }
 
-    match aws {
-        Some(aws) => {
+    match github {
+        Some(github) => {
             args.extend([
                 "--set".into(),
                 "instance.sync.kind=GitRepository".into(),
                 "--set".into(),
-                format!("instance.sync.url={}", aws.git_repo_url),
+                format!("instance.sync.url={}", github.git_repo_url),
                 "--set".into(),
                 format!(
                     "instance.sync.ref=refs/heads/{}",
@@ -2097,10 +2107,10 @@ async fn pivot_seed_target(
     // seed_flux against the target: the same operator + secrets + instance
     // sequence the bootstrap ran against kind.
     install_flux_operator(&cfg.repo, registry_config, Some(kc)).await?;
-    if let Some(aws) = preflight.aws.as_ref() {
-        create_aws_secrets(&cfg.repo, aws, Some(kc)).await?;
+    if let Some(github) = preflight.github.as_ref() {
+        create_github_secrets(&cfg.repo, github, Some(kc)).await?;
     }
-    install_flux_instance(cfg, preflight.aws.as_ref(), registry_config, Some(kc)).await?;
+    install_flux_instance(cfg, preflight.github.as_ref(), registry_config, Some(kc)).await?;
 
     println!(">>> Kustomizations on the management cluster:");
     run(
@@ -2206,7 +2216,7 @@ async fn run_pivot(cfg: &Config, preflight: &Preflight, http: &reqwest::Client) 
     // ── Phase 0: preflight ────────────────────────────────────────────────
     // Required tools were already checked by the bootstrap preflight
     // (clusterctl and mise are required on both profiles for the pivot);
-    // the aws flux-env checks ran in preflight_aws; the GitHub branch
+    // the aws flux-env checks ran in preflight_github; the GitHub branch
     // check is not repeated here.
     pivot_check_context(cfg).await?;
     pivot_check_management_cluster(&cfg.repo.bootstrap.mgmt_namespace, mgmt_cluster).await?;
@@ -2352,14 +2362,14 @@ async fn run_bootstrap(cfg: &Config, http: &reqwest::Client) -> Result<()> {
     // Step 2: install the Flux Operator.
     install_flux_operator(&cfg.repo, registry_config.path(), None).await?;
 
-    // Step 3: GitHub PAT + SOPS age secrets (aws only).
-    if let Some(aws) = preflight.aws.as_ref() {
-        create_aws_secrets(&cfg.repo, aws, None).await?;
+    // Step 3: GitHub PAT + SOPS age secrets (github-sync environments).
+    if let Some(github) = preflight.github.as_ref() {
+        create_github_secrets(&cfg.repo, github, None).await?;
     }
 
     // Step 4: install the FluxInstance via Helm.
     let controllers_ready =
-        install_flux_instance(cfg, preflight.aws.as_ref(), registry_config.path(), None).await?;
+        install_flux_instance(cfg, preflight.github.as_ref(), registry_config.path(), None).await?;
 
     // Step 5: watch local-host reconciliation.
     if cfg.is_local() {
@@ -2376,7 +2386,7 @@ async fn run_bootstrap(cfg: &Config, http: &reqwest::Client) -> Result<()> {
     }
     if cfg.profile == "aws" {
         let url = preflight
-            .aws
+            .github
             .as_ref()
             .map(|a| a.git_repo_url.as_str())
             .unwrap_or_default();
@@ -2426,6 +2436,12 @@ mod tests {
 
     fn config_from(cli: &Cli, get: impl Fn(&str) -> Option<String>) -> Config {
         Config::from_env(cli, repo_config(), get).unwrap()
+    }
+
+    // A Config skeleton for tests that only exercise profile-gated logic.
+    fn teardown_minimal_config() -> Config {
+        let cli = Cli::try_parse_from(["knr-bootstrap", "aws"]).unwrap();
+        Config::from_env(&cli, repo_config(), |_| None).unwrap()
     }
 
     const VALID_AGE_KEY: &str = "# created: 2026-01-01T00:00:00+02:00\n# public key: age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\nAGE-SECRET-KEY-1SECRETSECRETSECRET\n";
@@ -2589,6 +2605,74 @@ mod tests {
     }
 
     #[test]
+    fn sync_source_is_config_driven() {
+        // The FluxInstance sync source comes from bootstrap.toml [environments.*]
+        // (issue #105 scope item 6), not from the profile name: aws and
+        // local-talos sync from GitHub, local-host from the local OCI registry.
+        let repo = repo_config();
+        assert_eq!(
+            repo.environment("aws").unwrap().sync,
+            SyncSource::Github,
+            "aws must declare sync = \"github\""
+        );
+        assert_eq!(
+            repo.environment("local-talos").unwrap().sync,
+            SyncSource::Github,
+            "local-talos must declare sync = \"github\""
+        );
+        assert_eq!(
+            repo.environment("local-host").unwrap().sync,
+            SyncSource::Oci,
+            "local-host must declare sync = \"oci\""
+        );
+    }
+
+    #[test]
+    fn github_preflight_runs_for_github_sync_environments() {
+        // The GitHub/age preflight (PAT, repo branch probe, sops key) is
+        // gated on the sync source, not the aws profile name: local-talos
+        // needs the identical checks. The AWS-only credential steps stay
+        // gated on the profile.
+        assert!(runs_github_preflight(&Config {
+            profile: "aws".into(),
+            environment: repo_config().environment("aws").unwrap().clone(),
+            ..teardown_minimal_config()
+        }));
+        assert!(runs_github_preflight(&Config {
+            profile: "local-talos".into(),
+            environment: repo_config().environment("local-talos").unwrap().clone(),
+            ..teardown_minimal_config()
+        }));
+        assert!(!runs_github_preflight(&Config {
+            profile: "local-host".into(),
+            environment: repo_config().environment("local-host").unwrap().clone(),
+            ..teardown_minimal_config()
+        }));
+    }
+
+    #[test]
+    fn required_tools_match_the_sync_surface() {
+        // Base tools for every environment; local-host adds the local
+        // reconciliation-watch and oci-push tools. local-talos needs
+        // nothing beyond the base set: the machine is remote (no
+        // localhost rewrite, no oci-push) and talosctl is an operator
+        // convenience, not a bootstrap dependency.
+        let base = ["kind", "helm", "kubectl", "clusterctl", "mise"];
+        assert_eq!(
+            required_tools(&repo_config().environment("aws").unwrap()),
+            base
+        );
+        assert_eq!(
+            required_tools(&repo_config().environment("local-talos").unwrap()),
+            base
+        );
+        let local = required_tools(&repo_config().environment("local-host").unwrap());
+        assert!(local.len() > base.len());
+        assert!(local.contains(&"flux"));
+        assert!(local.contains(&"curl"));
+    }
+
+    #[test]
     fn toolbox_kind_kubeconfig_uses_one_explicit_file() {
         assert_eq!(
             toolbox_kubeconfig_path(true, Some("/state/kind.yaml")).unwrap(),
@@ -2707,7 +2791,7 @@ mod tests {
         let err = resolve_environment(Some("bogus"), None, &repo).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "unsupported profile 'bogus' (expected 'local-host' or 'aws')"
+            "unsupported profile 'bogus' (expected 'local-host' or 'aws' or 'local-talos')"
         );
     }
 
@@ -2757,7 +2841,7 @@ mod tests {
             resolve_environment(Some("bogus"), Some("local-host"), &repo)
                 .unwrap_err()
                 .to_string(),
-            "unsupported profile 'bogus' (expected 'local-host' or 'aws')"
+            "unsupported profile 'bogus' (expected 'local-host' or 'aws' or 'local-talos')"
         );
     }
 
@@ -2847,10 +2931,11 @@ mod tests {
 
     #[test]
     fn required_tools_cover_every_invoked_binary() {
-        // The pivot invokes clusterctl and mise on both profiles.
-        let aws = required_tools(false);
+        // The pivot invokes clusterctl and mise on every environment.
+        let repo = repo_config();
+        let aws = required_tools(repo.environment("aws").unwrap());
         assert_eq!(aws, vec!["kind", "helm", "kubectl", "clusterctl", "mise"]);
-        let local = required_tools(true);
+        let local = required_tools(repo.environment("local-host").unwrap());
         assert_eq!(
             local,
             vec![

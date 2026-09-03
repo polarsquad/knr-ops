@@ -63,6 +63,8 @@ s3-bucket-pattern = "knr-ops-{account_id}-{cluster_name}-data"
 
 [environments.local-host]
 kind = "local-host"
+# Flux syncs the OCI artifact published from the checkout by oci-push.
+sync = "oci"
 sync-path = "mgmt/local-host"
 mgmt-cluster = "local-management"
 mgmt-ready-timeout = "15m"
@@ -88,6 +90,8 @@ mgmt-container-prefix = "local-management"
 
 [environments.aws]
 kind = "aws"
+# Flux syncs the GitHub repository (GitRepository + flux-github-pat).
+sync = "github"
 sync-path = "mgmt/aws"
 mgmt-cluster = "eu-north-1-management"
 mgmt-ready-timeout = "40m"
@@ -129,3 +133,38 @@ region = "eu-west-1"
 cluster-name = "eu-west-1-workload"
 eks-cluster-name = "default_eu-west-1-workload-control-plane"
 rds-instance = "knr-ops-eu-west-1-workload-db"
+
+[environments.local-talos]
+kind = "local-talos"
+# Flux syncs the GitHub repository, like aws: a physical machine cannot
+# reach the laptop's OCI registry (issue #105 decision). Requires a GitHub
+# PAT (flux-github-pat), unlike local-host.
+sync = "github"
+sync-path = "mgmt/local-talos"
+mgmt-cluster = "local-talos-management"
+# PXE install + first Talos boot takes longer than kind/EKS provisioning.
+mgmt-ready-timeout = "30m"
+# The Tinkerbell infrastructure provider (well-known clusterctl name
+# "tinkerbell-tinkerbell", see capi-providers/capt-system/provider.yaml).
+infra-provider-namespace = "capt-system"
+infra-provider-name = "tinkerbell-tinkerbell"
+provider-manifests = [
+  "mgmt/local-talos/capi-providers/capi-system/namespace.yaml",
+  "mgmt/local-talos/capi-providers/capi-system/providers.yaml",
+  "mgmt/local-talos/capi-providers/cabpt-system/namespace.yaml",
+  "mgmt/local-talos/capi-providers/cabpt-system/provider.yaml",
+  "mgmt/local-talos/capi-providers/cacppt-system/namespace.yaml",
+  "mgmt/local-talos/capi-providers/cacppt-system/provider.yaml",
+  "mgmt/local-talos/capi-providers/capt-system/namespace.yaml",
+  "mgmt/local-talos/capi-providers/capt-system/provider.yaml",
+]
+
+[environments.local-talos.teardown]
+# local-talos owns no workload clusters (scope fence: management-only).
+capi-workloads = []
+# Bare-metal semantics (issue #105 scope item 8): teardown deletes the
+# CAPI objects so CAPT releases the Tinkerbell Hardware back to the pool,
+# but the machine itself is never wiped or reclaimed: it is left running
+# Talos for the operator to re-use or PXE-boot fresh. No container-prefix
+# sweep (that is the local-host CAPD path) and no AWS orphan sweep.
+hardware-release = true

@@ -26,10 +26,12 @@ CHART_MANIFESTS = {
     "cert-manager": [
         "mgmt/aws/infrastructure/cert-manager/helmrelease.yaml",
         "mgmt/local-host/infrastructure/cert-manager/helmrelease.yaml",
+        "mgmt/local-talos/infrastructure/cert-manager/helmrelease.yaml",
     ],
     "capi-operator": [
         "mgmt/aws/infrastructure/capi-operator/helmrelease.yaml",
         "mgmt/local-host/infrastructure/capi-operator/helmrelease.yaml",
+        "mgmt/local-talos/infrastructure/capi-operator/helmrelease.yaml",
     ],
 }
 
@@ -76,6 +78,16 @@ def main() -> int:
         sync = REPO_ROOT / env.get("sync-path", "")
         if not sync.is_dir():
             failures.append(f"environments.{name}.sync-path '{env.get('sync-path')}' is not a directory")
+        # The sync source drives the FluxInstance seeding (issue #105):
+        # 'github' (GitRepository + PAT secret, aws and local-talos) or
+        # 'oci' (local registry artifact, local-host). The Rust enum must
+        # agree with every declared value (unknown value = startup error).
+        if "sync" not in env:
+            failures.append(f"environments.{name} is missing the 'sync' key")
+        elif env["sync"] not in ("github", "oci"):
+            failures.append(
+                f"environments.{name}.sync {env['sync']!r} must be 'github' or 'oci'"
+            )
         for manifest in env.get("provider-manifests", []):
             if not (REPO_ROOT / manifest).is_file():
                 failures.append(f"environments.{name} provider manifest missing: {manifest}")

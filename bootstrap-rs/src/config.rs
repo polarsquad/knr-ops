@@ -44,11 +44,26 @@ pub struct BootstrapSection {
     pub mgmt_context: String,
 }
 
+/// The Flux sync source for an environment
+/// (`[environments.<name>].sync`, issue #105 scope item 6): where the
+/// management cluster's FluxInstance pulls its configuration from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SyncSource {
+    /// GitRepository against GitHub, authenticated by the PAT secret
+    /// (aws, local-talos).
+    Github,
+    /// OCI artifact published from the checkout to the local registry
+    /// (local-host).
+    Oci,
+}
+
 /// One `[environments.<name>]` section.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct Environment {
     pub kind: String,
+    pub sync: SyncSource,
     pub sync_path: String,
     pub mgmt_cluster: String,
     pub mgmt_ready_timeout: String,
@@ -132,6 +147,13 @@ pub struct TeardownEnv {
     pub mgmt_eks_cluster_name: Option<String>,
     #[serde(default)]
     pub mgmt_iam_role_prefix: Option<String>,
+    /// Bare-metal semantics (local-talos only, issue #105 scope item 8):
+    /// teardown deletes the CAPI objects so CAPT releases the Tinkerbell
+    /// Hardware back to the pool, but the machine itself is never wiped
+    /// or reclaimed: it is left running Talos for the operator to re-use
+    /// or PXE-boot fresh.
+    #[serde(default)]
+    pub hardware_release: bool,
 }
 
 impl BootstrapConfig {
@@ -223,6 +245,7 @@ flux-operator = "0.58.0"
 
 [environments.local-host]
 kind = "local-host"
+sync = "oci"
 sync-path = "mgmt/local-host"
 mgmt-cluster = "local-management"
 mgmt-ready-timeout = "15m"
@@ -232,6 +255,7 @@ provider-manifests = []
 
 [environments.aws]
 kind = "aws"
+sync = "github"
 sync-path = "mgmt/aws"
 mgmt-cluster = "eu-north-1-management"
 mgmt-ready-timeout = "40m"
@@ -260,11 +284,13 @@ manifest = "mgmt/aws/infrastructure/aws-identity/identity.yaml"
 
         let aws = config.environment("aws").unwrap();
         assert_eq!(aws.mgmt_cluster, "eu-north-1-management");
+        assert_eq!(aws.sync, SyncSource::Github);
         assert_eq!(aws.move_fallbacks.len(), 1);
         assert_eq!(aws.move_fallbacks[0].name, "default");
 
         let local = config.environment("local-host").unwrap();
         assert!(local.move_fallbacks.is_empty());
+        assert_eq!(local.sync, SyncSource::Oci);
         assert_eq!(
             (
                 local.infra_provider_namespace.as_str(),

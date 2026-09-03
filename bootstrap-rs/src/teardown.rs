@@ -1739,6 +1739,118 @@ pub async fn run_teardown(cfg: &Config, tcfg: &TeardownConfig) -> Result<()> {
         return Ok(());
     }
 
+    // ── local-talos path (bare metal; issue #105 scope item 8) ────────
+    if td.hardware_release {
+        if tcfg.aws_only {
+            bail!(
+                "AWS_ONLY=1 cannot be combined with the local-talos profile\n       There is no AWS orphan sweep for operator-owned hardware"
+            );
+        }
+        for cmd in ["kubectl", "helm", "xargs"] {
+            if which_failure(cmd).await {
+                bail!("{cmd} not found in PATH");
+            }
+        }
+
+        // The CAPI inventory lives in kind pre-pivot, in the management
+        // cluster itself post-pivot (same discovery as aws).
+        let host = discover_controller_host(cfg).await;
+        let kc: Option<String> = match &host {
+            ControllerHost::Kind => None,
+            ControllerHost::SelfManaged => {
+                Some(tcfg.mgmt_kubeconfig.to_string_lossy().into_owned())
+            }
+            ControllerHost::Unreachable => {
+                println!(">>> No reachable controller host; nothing to release");
+                println!();
+                println!("✓ Teardown complete.");
+                return Ok(());
+            }
+        };
+
+        if let Some(kc) = kc.as_deref() {
+            suspend_flux(Some(kc)).await?;
+        } else {
+            suspend_flux(None).await?;
+        }
+        // Delete every CAPI Cluster (the management cluster included: its
+        // deletion is the release). CAPT deprovisions the machine's CAPI
+        // footprint; the Hardware CR stays in the Tinkerbell stack and the
+        // node keeps running Talos for the operator.
+        let mut clusters_gone = true;
+        let listing = capture_lossy(
+            "kubectl",
+            &kubectl_cmd(kc.as_deref(), &["get", "clusters", "-A", "-o", "name"]),
+        )
+        .await;
+        let clusters: Vec<String> = listing
+            .lines()
+            .filter_map(|l| l.trim().rsplit('/').next())
+            .map(String::from)
+            .collect();
+        if clusters.is_empty() {
+            println!(">>> No CAPI clusters found; nothing to release");
+        } else {
+            for cluster in &clusters {
+                println!(">>> Deleting CAPI cluster '{cluster}' (Hardware release)...");
+                let _ = run(
+                    "kubectl",
+                    &kubectl_cmd(
+                        kc.as_deref(),
+                        &["delete", "cluster", cluster, "--ignore-not-found"],
+                    ),
+                )
+                .await;
+            }
+            println!(
+                ">>> Waiting up to {}s for the clusters to be deleted...",
+                tcfg.cluster_delete_timeout
+            );
+            let deadline = std::time::Instant::now()
+                + std::time::Duration::from_secs(tcfg.cluster_delete_timeout);
+            loop {
+                let remaining = capture_lossy(
+                    "kubectl",
+                    &kubectl_cmd(kc.as_deref(), &["get", "clusters", "-A", "-o", "name"]),
+                )
+                .await;
+                if remaining.trim().is_empty() {
+                    println!("✓   All CAPI clusters deleted; Hardware released to the pool");
+                    break;
+                }
+                if std::time::Instant::now() >= deadline {
+                    eprintln!("!   Timed out waiting for CAPI clusters to delete; aborting.");
+                    eprintln!("!   The management cluster was left intact; re-run teardown once");
+                    eprintln!("!   'kubectl get clusters -A' is empty.");
+                    clusters_gone = false;
+                    break;
+                }
+                println!(">>>   clusters still deleting...");
+                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+            }
+        }
+
+        if clusters_gone && host == ControllerHost::Kind {
+            // Pre-pivot: the bootstrap kind cluster owns nothing else.
+            let name = cfg.repo.bootstrap.kind_cluster.clone();
+            println!(">>> Deleting kind bootstrap cluster '{name}'...");
+            if run("kind", &["delete", "cluster", "--name", &name])
+                .await
+                .is_ok()
+            {
+                println!("✓   kind cluster '{name}' deleted");
+            } else {
+                warn("kind cluster could not be deleted – it may already be gone");
+            }
+        }
+
+        println!();
+        println!("✓ Teardown complete.");
+        println!("!   The machine was NOT wiped: it still runs Talos. Re-use it or");
+        println!("!   PXE-boot it fresh (issue #105 teardown semantics).");
+        return Ok(());
+    }
+
     // ── aws path ──────────────────────────────────────────────────────
     let host = if tcfg.aws_only {
         ControllerHost::Unreachable
