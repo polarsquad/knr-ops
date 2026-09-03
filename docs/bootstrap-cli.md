@@ -68,8 +68,8 @@ knr-bootstrap teardown local-host     # local-host teardown
 
 - `PROFILE` is the CLI's retained positional name. Its value names a section
   under `[environments.*]` in
-  [`bootstrap.toml`](../bootstrap.toml). The checked-in environments are `aws`
-  and `local-host`.
+  [`bootstrap.toml`](../bootstrap.toml). The checked-in environments are `aws`,
+  `local-host`, and `local-talos`.
 - A non-empty `KNR_OPS_PROFILE` overrides the positional profile. If
   neither is set, `bootstrap.default-environment` from `bootstrap.toml` is
   used.
@@ -101,15 +101,15 @@ pins together with their declarative counterparts. See
 | `REGISTRY_READY_RETRIES` | `120` | Local-host registry readiness attempts |
 | `LOCAL_RECONCILE_TIMEOUT` | `15m` | Local-host management and workload reconciliation waits |
 | `CONTAINER_ENGINE` | auto-detect Docker, then Podman | kind and registry engine |
-| `GIT_REPO_URL` | required for `aws` | Management Flux Git source |
-| `GITHUB_TOKEN` | required for `aws` | PAT with read access to the repository |
+| `GIT_REPO_URL` | required for `aws` and `local-talos` | Management Flux Git source |
+| `GITHUB_TOKEN` | required for `aws` and `local-talos` | PAT with read access to the repository |
 | `GITHUB_USER` | `git` | Basic-auth username paired with the PAT |
 | `AGE_KEY_FILE` | `age.agekey` | SOPS age private key loaded into `sops-age` |
 | `AGE_PUBLIC_KEY` | derived from `AGE_KEY_FILE` | Public key override during secret creation |
 | `OCI_REPOSITORY` / `OCI_TAG` | `knr-ops` / `latest` | Local-host OCI artifact name |
 | `BOOTSTRAP_PIVOT` | `1` | Any value other than literal `1` skips pivot |
 | `MGMT_KUBECONFIG` | `~/.kube/knr-ops-mgmt.yaml` | Exported management kubeconfig for native runs |
-| `MGMT_READY_TIMEOUT` | `40m` for aws, `15m` for local-host | Management cluster provisioning wait |
+| `MGMT_READY_TIMEOUT` | `40m` for aws, `15m` for local-host, `30m` for local-talos (PXE install + first Talos boot) | Management cluster provisioning wait |
 | `MGMT_POLL_INTERVAL` | `10` seconds | Management cluster provisioning poll |
 | `BOOTSTRAP_KUBECONTEXT` | config value `kind-mgmt` | Source context required by pivot |
 | `PIVOT_SKIP_DELETE` | `0` | Literal `1` keeps kind after a successful pivot |
@@ -132,13 +132,14 @@ limitations are documented in [Operations](./operations.md#toolbox-container-pri
 ## What bootstrap and pivot do
 
 1. **Preflight:** validate the environment and required tools, select a running
-   container engine, and perform the AWS GitHub/token/age-key checks when
-   needed. Native runs require `kind`, `helm`, `kubectl`, `clusterctl`, and
-   `mise`; local-host also requires `flux` and `curl`.
+   container engine, and perform the GitHub token/age-key checks for
+   GitHub-synced environments (`aws`, `local-talos`). Native runs require
+   `kind`, `helm`, `kubectl`, `clusterctl`, and `mise`; OCI-synced
+   environments (`local-host`) also require `flux` and `curl`.
 2. **Bootstrap kind:** create or reuse `mgmt`, start the local registry for
-   local-host, install the Flux Operator, create the AWS Git and SOPS secrets
-   or publish the local OCI artifact, install the `FluxInstance`, and watch
-   reconciliation.
+   local-host, install the Flux Operator, create the Git and SOPS secrets
+   (GitHub-synced environments) or publish the local OCI artifact, install
+   the `FluxInstance`, and watch reconciliation.
 3. **Pivot by default:** wait for the CAPI-managed management cluster, export
    its kubeconfig, install cert-manager, the CAPI operator, and provider CRs at
    the versions declared in `bootstrap.toml`, suspend Flux in kind, run
@@ -158,7 +159,7 @@ knr-bootstrap teardown [PROFILE]
 
 | Variable | Default | Effect |
 |---|---|---|
-| `AWS_ONLY` | `0` | Literal `1` skips Kubernetes steps and runs only the AWS orphan sweep; invalid with `local-host` |
+| `AWS_ONLY` | `0` | Literal `1` skips Kubernetes steps and runs only the AWS orphan sweep; invalid with `local-host` and `local-talos` |
 | `FORCE_KIND_DELETE` | `0` | Literal `1` removes the controller host even when CAPI cluster deletion was not confirmed |
 | `CLUSTER_DELETE_TIMEOUT` | `1200` seconds | AWS workload-cluster deletion wait |
 | `PROVIDER_DELETE_TIMEOUT` | `300` seconds | CAPI provider deletion wait |
@@ -169,6 +170,7 @@ Teardown checks required tools before mutation:
 | Mode | Required tools |
 |---|---|
 | `local-host` | `kind`, `kubectl`; `AWS_ONLY=1` is rejected |
+| `local-talos` | `kind`, `kubectl`; `AWS_ONLY=1` is rejected |
 | normal `aws` | `kind`, `helm`, `kubectl`, `xargs`; AWS CLI is optional and its absence skips the orphan sweep |
 | `AWS_ONLY=1` | AWS CLI only |
 
@@ -180,6 +182,11 @@ cleanup semantics.
 - `local-host`: suspend the workload Kustomization, delete the CAPD workload
   cluster and wait for its containers to disappear, remove kind or the
   self-managed management containers, then remove the local registry.
+- `local-talos`: suspend Flux and delete every CAPI Cluster, the management
+  cluster included; the deletion IS the release, and CAPT returns the
+  machine's Hardware to the Tinkerbell pool. The machine is never wiped: it
+  keeps running Talos for the operator. `AWS_ONLY=1` is rejected because
+  there is no AWS orphan sweep for operator-owned hardware.
 - `aws`: suspend Flux, delete and wait for workload CAPI clusters, run the AWS
   orphan sweep for both workloads and the self-managed management cluster,
   remove CAPI providers and bootstrap Helm releases when the controller host is
@@ -203,5 +210,7 @@ does not select a separate CLI subcommand.
 The three shell scripts remain as native reference and fallback paths until
 full parity runs pass for both environments. Local-host bootstrap, pivot, and
 post-pivot teardown have completed parity runs. AWS full-parity runs still gate
-script retirement. At this revision no semver tag has run the release workflow,
+script retirement. The local-talos environment has not run end to end yet;
+its acceptance run waits on operator Tinkerbell hardware (issue #105). At
+this revision no semver tag has run the release workflow,
 and no Podman-host acceptance run is recorded.

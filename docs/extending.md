@@ -114,41 +114,41 @@ which backs the managed-AKS path.
    place of `${AWS_REGION}`. The AWS-only steps (Pod Identity associations,
    ACK controllers) have no Azure equivalent; skip them.
 
-### Talos (CABPT + CACPT)
+### Talos (CABPT + CACPPT)
 
 Talos supplies the bootstrap and control plane providers only; pair it with
-any infrastructure provider (CAPA, CAPZ, k0smotron RemoteMachine, ...) that
-supplies the machines.
+any infrastructure provider (CAPT, CAPA, CAPZ, ...) that supplies the
+machines. The worked in-repo example is the `local-talos` environment:
+`mgmt/local-talos/` pairs the Talos providers with Tinkerbell (CAPT) to
+PXE-boot a bare-metal management machine.
 
 1. Two directories, matching the upstream namespace conventions:
 
    ```yaml
-   # mgmt/aws/capi-providers/cabpt-system/providers.yaml
+   # mgmt/local-talos/capi-providers/cabpt-system/provider.yaml
    apiVersion: operator.cluster.x-k8s.io/v1alpha2
    kind: BootstrapProvider
    metadata:
      name: talos
      namespace: cabpt-system
    spec:
-     version: "v0.6.11"
-   ---
-   # mgmt/aws/capi-providers/cacppt-system/providers.yaml
-   apiVersion: operator.cluster.x-k8s.io/v1alpha2
-   kind: ControlPlaneProvider
-   metadata:
-     name: talos
-     namespace: cacppt-system
-   spec:
-     version: "v0.5.13"
+     version: "v0.7.6"
+     fetchConfig:
+       url: "https://github.com/sidero-community/cluster-api-bootstrap-provider-talos/releases"
    ```
 
-2. No cloud credentials: Talos machine secrets are generated per cluster by
+   The control plane provider is the same shape
+   (`cacppt-system/provider.yaml`: ControlPlaneProvider `talos` v0.6.4).
+2. Set `fetchConfig.url` explicitly to the
+   [sidero-community](https://github.com/sidero-community) releases: the CAPI
+   operator's embedded clusterctl defaults resolve `talos` to the archived
+   siderolabs org. The sidero-community line serves the v1beta2 contract
+   (`cluster.x-k8s.io/v1beta2: v1beta1` in the released metadata), so the
+   contract note above does not impose a migration deadline on it.
+3. No cloud credentials: Talos machine secrets are generated per cluster by
    `TalosControlPlane` / `TalosConfig`. Always set `talosVersion` explicitly
-   (e.g. `v1.12`) so a provider upgrade does not silently change the
+   (e.g. `v1.14`) so a provider upgrade does not silently change the
    generated machine config.
-3. Contract caveat: the stable Talos providers still implement the v1beta1
-   contract, which CAPI serves only until ~April 2027. The v1beta2 line is
-   CABPT v0.7.0 (in alpha at time of writing); adopt it once it goes stable.
 4. In cluster definitions, swap `KubeadmControlPlane` for `TalosControlPlane`
    and `KubeadmConfigTemplate` for `TalosConfigTemplate`; the infrastructure
    templates stay whatever the paired infra provider supplies.

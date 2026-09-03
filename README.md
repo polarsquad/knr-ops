@@ -5,9 +5,11 @@
 
 A GitOps pattern for managing cloud infrastructure through the Kubernetes API:
 no Terraform, no DSLs, no state files, no second toolchain. This repository is
-a working reference implementation of that pattern, with two environments:
-`aws`, which runs it end-to-end on AWS EKS, and `local-host`, which runs the
-same lifecycle on local clusters with no cloud account involved. **It is not a
+a working reference implementation of that pattern, with three environments:
+`aws`, which runs it end-to-end on AWS EKS; `local-host`, which runs the
+same lifecycle on local clusters with no cloud account involved; and
+`local-talos`, which pivots onto a single-node Talos Linux cluster
+PXE-booted onto operator-provided bare metal. **It is not a
 product**: fork it, strip it down, and adapt the layout to your own cloud and
 clusters.
 
@@ -30,6 +32,12 @@ provider instead of CAPA: a local OCI registry, a one-control-plane/one-worker
 workload cluster, a second Flux instance, and a Podinfo app reachable from
 your laptop. It covers the complete GitOps, CAPI, and pivot lifecycle without
 provisioning AWS resources.
+
+The `local-talos` environment runs the same chain onto physical hardware:
+Tinkerbell (CAPT) PXE-boots one machine with [Talos
+Linux](https://www.talos.dev/), and the single-node Talos cluster becomes
+the self-managed management plane, syncing from GitHub like `aws`. Scope
+fence: management-only, no workload cluster.
 
 The imperative part of the lifecycle (bootstrap, pivot, and teardown) is a
 single Rust CLI, [`knr-bootstrap`](docs/bootstrap-cli.md), that replaces the
@@ -90,7 +98,11 @@ A future matching `v*` tag publishes
 `ghcr.io/polarsquad/knr-ops-toolbox` for Linux amd64 and arm64 as `X.Y.Z`,
 `X.Y`, and stable `latest`, with a keyless signature and SPDX SBOM
 attestation. The `aws` environment additionally requires a GitHub PAT with
-read access, AWS credentials and service quotas, and an age private key.
+read access, AWS credentials and service quotas, and an age private key. The
+`local-talos` environment needs the PAT and age key too (it syncs from
+GitHub), plus a reachable Tinkerbell stack and the site values in
+`mgmt/local-talos/clusters/management/cluster.yaml`; see
+[Operations](docs/operations.md).
 
 Native development and air-gap work additionally need:
 
@@ -193,6 +205,21 @@ controller host, deletes the workload clusters, sweeps orphaned resources in
 both workload regions plus the self-managed management cluster, and removes
 the `clusterawsadm` CloudFormation stack.
 
+The `local-talos` environment targets a physical machine through Tinkerbell:
+a PXE install of Talos Linux, then the same bootstrap, pivot, and
+self-management flow, synced from GitHub. It needs the GitHub PAT and age
+key, a reachable Tinkerbell stack with a `Hardware` resource for the
+machine, and the site values in
+`mgmt/local-talos/clusters/management/cluster.yaml`:
+
+```sh
+mise -E local-talos install  # adds talosctl
+mise -E local-talos run bootstrap
+export KUBECONFIG="$PWD/.kube/knr-ops-mgmt.yaml"
+mise -E local-talos run kubeconfigs
+mise -E local-talos run teardown  # releases the Hardware; never wipes the machine
+```
+
 ## The bootstrap CLI
 
 The single `knr-bootstrap` binary implements bootstrap, the default pivot, and
@@ -236,7 +263,8 @@ teardown controls, toolbox release, and current parity status.
 ├── scripts/toolbox-run.sh         Docker/Podman wrapper used by lifecycle tasks
 ├── tests/                         Config and Renovate coverage cross-checks
 ├── docs/                          Detailed documentation (see table above)
-├── mise.toml / mise.*.toml        Pinned toolchain and AWS/local-host tasks
+├── mise.toml / mise.*.toml        Pinned toolchain and per-environment
+│                                  task layers (aws, local-talos)
 ├── renovate.json5                 Hosted Renovate discovery and grouping rules
 ├── mgmt/aws/                      Synced by the MANAGEMENT cluster's Flux
 │   ├── infrastructure/           cert-manager, CAPI operator, CAPA identity,
@@ -252,6 +280,9 @@ teardown controls, toolbox release, and current parity status.
 │                                  carries the self-managed management cluster
 ├── mgmt/local-host/              OCI-synced CAPI/CAPD local workload cluster
 │                                  and its management cluster definition
+├── mgmt/local-talos/             Single-node Talos management cluster on
+│                                  bare metal via Tinkerbell (CAPT);
+│                                  GitHub-synced like mgmt/aws
 └── workload/                     Synced by each WORKLOAD cluster's Flux
     ├── base/                     ACK S3/RDS/IAM controllers, Bucket CRs,
     │                              DBInstance CRs, reader Role CRs

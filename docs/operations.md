@@ -63,7 +63,8 @@ docker run --rm -it \
 Generate the age key and re-encrypt secrets for a new fork before the AWS run;
 see [Secret management](./secrets.md). If credentials come from an AWS shared
 configuration instead of environment variables, also mount that configuration
-under `/root/.aws` and pass `AWS_PROFILE`.
+under `/root/.aws` and pass `AWS_PROFILE`. The local-talos environment needs
+the same Git source, PAT, and age key, but no AWS credentials.
 
 Podman socket locations differ across rootful Linux, rootless Linux, and
 `podman machine`. Use the checked-in wrapper to resolve the host mount and the
@@ -144,7 +145,9 @@ mise install
 This provides `kubectl`, `kind`, `helm`, `flux`, `clusterctl`, `go`, `sops`,
 `age`, and the `zarf` CLI. The `aws` environment layers on `aws-cli` and
 `clusterawsadm` (`mise -E aws install`); the `local-host` environment needs
-no extra tools. Building the bootstrap CLI additionally requires a Rust
+no extra tools; the `local-talos` environment layers on `talosctl`
+(`mise -E local-talos install`). Building the bootstrap CLI additionally
+requires a Rust
 toolchain ([rustup](https://rustup.rs/); the pin lives in
 `bootstrap-rs/rust-toolchain.toml`). The lifecycle mise tasks still use the
 toolbox. For a fully native run from the repository root, invoke
@@ -181,6 +184,35 @@ You also need:
   clusterawsadm bootstrap iam create-cloudformation-stack --region eu-north-1
   ```
 
+**local-talos environment only:**
+- The GitHub PAT and age key, as for the AWS environment: local-talos syncs
+  its configuration from GitHub (a physical machine cannot reach the
+  laptop-hosted OCI registry), so bootstrap seeds the same `flux-github-pat`
+  and `sops-age` secrets.
+- A reachable [Tinkerbell](https://tinkerbell.org/) stack on the machine's
+  network, and a `Hardware` resource describing the target machine. The
+  stack is operator-owned infrastructure this repository does not deploy.
+  Minimal setup:
+  1. Install the [tink stack](https://tinkerbell.org/docs/setup/install/)
+     (boots serving DHCP/PXE/iPXE, plus the Tinkerbell API) on a helper
+     Kubernetes cluster that can reach the machine's L2 network.
+  2. Create the `Hardware` CR naming the machine's MAC address and reserved
+     IP; its name must match the `hardwareName` in
+     `mgmt/local-talos/clusters/management/cluster.yaml` (`talos-mgmt-01`
+     as checked in).
+  3. Annotate the `Hardware` CR with
+     `hardware.tinkerbell.org/installer-image: <image URL>` when the machine
+     needs a non-default Image Factory schematic (system extensions, custom
+     kernel args). The pinned CAPT fork mirrors the annotation into
+     `status.installerImage` and CABPT injects it as the Talos
+     `machine.install.image`; without the annotation the default schematic
+     is used.
+  4. Set the machine to PXE-boot from the network boots serves.
+- Two site-specific values in
+  `mgmt/local-talos/clusters/management/cluster.yaml` before the first run:
+  `spec.controlPlaneEndpoint.host` (the machine's stable IP) and the
+  `TinkerbellMachineTemplate` `hardwareName` (the Hardware CR name).
+
 ### AWS service quotas (common first-run blockers)
 
 | Quota | Code | Needed | Why |
@@ -201,8 +233,9 @@ cp .env.example .env
 $EDITOR .env
 ```
 
-The Flux Operator chart is pulled anonymously for both environments. The
-GitHub PAT, AWS credentials, and `AWS_REGION` are only needed with the AWS
+The Flux Operator chart is pulled anonymously for all environments. The
+GitHub PAT is needed for the AWS and local-talos environments (both sync
+from GitHub); AWS credentials and `AWS_REGION` are only needed with the AWS
 environment.
 
 Repository-owned lifecycle configuration lives in `bootstrap.toml`. It defines
@@ -217,6 +250,7 @@ Runtime environment variables take precedence over configurable defaults, and
 ```sh
 mise run bootstrap                 # AWS environment (toolbox container via scripts/toolbox-run.sh)
 mise -E local-host run bootstrap   # local-host environment
+mise -E local-talos run bootstrap  # local-talos environment
 ```
 
 > Before the first AWS bootstrap, generate an age key for SOPS. See
@@ -257,6 +291,19 @@ Flux control plane on that cluster, and reconciles a reachable Podinfo workload.
 It exercises the complete cluster-to-workload GitOps lifecycle locally; only
 the AWS-specific infrastructure and ACK resources are outside its scope.
 
+The local-talos environment performs the same kind bootstrap and Flux
+handoff, but syncs from GitHub like AWS and pivots onto operator-provided
+bare metal: CAPT PXE-boots the machine named by the Tinkerbell `Hardware`
+resource, installs Talos with the image resolved from the Hardware's
+`hardware.tinkerbell.org/installer-image` annotation, and the single-node
+Talos cluster takes over as the management cluster. The management-ready
+wait defaults to 30 minutes (`mgmt-ready-timeout` in `bootstrap.toml`) to
+cover the PXE install and first Talos boot. Scope fence: management-only.
+There is no workload cluster and no CNI addon; Talos ships flannel. Verify
+after the pivot with `mise -E local-talos run kubeconfigs` and
+`kubectl get nodes`: one Ready node on the committed endpoint, schedulable
+for the full management plane (`allowSchedulingOnControlPlanes`).
+
 **OCI Registry (local-host environment only):**
 - Provides a local container registry for development workflows
 - Enables developers to build and push OCI artifacts from git checkouts
@@ -283,7 +330,9 @@ preserving those directory paths when the artifact is pulled. Keeping the
 source scope narrow also prevents local credentials and age private keys
 elsewhere in the repository from being packaged.
 
-The AWS environment adds the GitHub/SOPS secrets and configures the FluxInstance to sync `mgmt/aws/`.
+The AWS and local-talos environments add the GitHub/SOPS secrets and
+configure the FluxInstance to sync `mgmt/aws/` or `mgmt/local-talos/`
+respectively.
 
 Watch reconciliation after a toolbox run with the persisted management
 kubeconfig:
@@ -409,6 +458,7 @@ The mise tasks run the Rust subcommand in the toolbox:
 ```sh
 mise run teardown                 # aws
 mise -E local-host run teardown   # local-host
+mise -E local-talos run teardown  # local-talos
 ```
 
 Native equivalents are `knr-bootstrap teardown [PROFILE]` and the retained
@@ -425,7 +475,7 @@ The main controls keep the shell interface:
 
 | Variable | Default | Effect |
 |---|---|---|
-| `AWS_ONLY` | `0` | Literal `1` runs only the AWS orphan sweep; invalid with `local-host` |
+| `AWS_ONLY` | `0` | Literal `1` runs only the AWS orphan sweep; invalid with `local-host` and `local-talos` |
 | `FORCE_KIND_DELETE` | `0` | Literal `1` overrides the final controller-host deletion guard |
 | `CLUSTER_DELETE_TIMEOUT` | `1200` seconds | AWS workload-cluster deletion wait |
 | `PROVIDER_DELETE_TIMEOUT` | `300` seconds | CAPI provider deletion wait |
@@ -436,6 +486,7 @@ The hard preflight depends on the mode:
 | Mode | Required tools |
 |---|---|
 | `local-host` | `kind`, `kubectl`; `AWS_ONLY=1` is rejected |
+| `local-talos` | `kind`, `kubectl`; `AWS_ONLY=1` is rejected |
 | normal `aws` | `kind`, `helm`, `kubectl`, `xargs`; a missing AWS CLI skips the orphan sweep |
 | `AWS_ONLY=1` | AWS CLI only |
 
@@ -447,6 +498,14 @@ For `local-host`, teardown suspends the workload Kustomization, deletes the
 CAPD workload cluster, waits for its containers to disappear, removes either
 the pre-pivot kind cluster or the post-pivot self-managed management
 containers, and removes `knr-registry` last.
+
+For `local-talos`, teardown suspends Flux and deletes every CAPI Cluster,
+the management cluster included: the deletion IS the release, and CAPT
+returns the machine's `Hardware` entry to the Tinkerbell pool. It waits for
+the deprovision to complete, then deletes the kind bootstrap cluster if the
+pivot has not run yet. The machine itself is never wiped: it keeps running
+Talos for the operator to re-use or PXE-boot fresh. There is no orphan
+sweep; the environment owns no cloud resources.
 
 For `aws`, teardown suspends Flux, deletes every workload CAPI Cluster while
 leaving the management Cluster object alone, and waits before touching the
