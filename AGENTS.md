@@ -31,7 +31,11 @@ resources. There is no app source code here, only declarative infrastructure.
   Talos + Tinkerbell (CABPT/CACPPT from sidero-community releases, CAPT)
   instead of CAPD; the cluster definition is imperative (explicit
   controlPlaneRef, no ClusterClass) with committed site-specific values
-  (control plane endpoint IP, Tinkerbell Hardware name). Scope fence:
+  (control plane endpoint IP, Tinkerbell Hardware name). CAPT is pinned to
+  the shrinedogg fork release v0.7.1 (upstream main plus the
+  installer-image annotation mirror, PR tinkerbell#604; see
+  `capi-providers/capt-system/provider.yaml`); re-point at upstream once a
+  release there includes it. Scope fence:
   management-only; no `addons/` (Talos ships its own CNI, no
   HelmChartProxy consumers). Bootstrap/pivot wiring and docs land with
   the rest of the #105 series.
