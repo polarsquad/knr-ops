@@ -59,7 +59,8 @@ metadata:
   namespace: default
 spec:
   replicas: 1
-  version: v1.36.0
+  # renovate: datasource=github-releases depName=kubernetes/kubernetes
+  version: "v1.36.0"
   infrastructureTemplate:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: TinkerbellMachineTemplate
@@ -70,7 +71,9 @@ spec:
       # Pinned so a provider upgrade does not silently change the generated
       # machine config (docs/extending.md Talos rule; lives at
       # controlPlaneConfig.controlplane.talosVersion in the v1beta1 API,
-      # not at the spec root).
+      # not at the spec root). Major.minor only: the machine-config contract
+      # version, not a specific Talos build.
+      # renovate: datasource=github-releases depName=siderolabs/talos
       talosVersion: v1.14
       strategicPatches:
         # One machine carries the whole management plane (#105).

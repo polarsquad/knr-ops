@@ -212,6 +212,27 @@
     },
     {
       "customType": "regex",
+      "description": "Annotated version pins in local-talos manifests (#157)",
+      "managerFilePatterns": ["/(^|/)mgmt/local-talos/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z0-9-]+) depName=(?<depName>\\S+)\\n\\s{2,}version: \\\"v(?<currentValue>[^\\\"]+)\\\""
+      ],
+      "extractVersionTemplate": "^v(?<version>.+)",
+      "autoReplaceStringTemplate": "# renovate: datasource={{{datasource}}} depName={{{depName}}}\n  version: \"v{{{newValue}}}\""
+    },
+    {
+      "customType": "regex",
+      "description": "local-talos talosVersion machine-config contract pin (#157)",
+      "managerFilePatterns": ["/(^|/)mgmt/local-talos/clusters/management/cluster\\.yaml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z0-9-]+) depName=(?<depName>siderolabs/talos)\\n\\s+talosVersion: v(?<currentValue>[0-9]+\\.[0-9]+)"
+      ],
+      "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+)",
+      "versioningTemplate": "loose",
+      "autoReplaceStringTemplate": "# renovate: datasource={{{datasource}}} depName={{{depName}}}\n      talosVersion: v{{{newValue}}}"
+    },
+    {
+      "customType": "regex",
       "description": "pivot.sh imperative Helm chart pins",
       "managerFilePatterns": ["/(^|/)pivot\\.sh$/"],
       "matchStrings": [
@@ -246,9 +267,9 @@
     // ── clusterctl operator provider manifests ───────────────────────────
     {
       "customType": "regex",
-      "description": "CAPI core, kubeadm, and CAPD provider versions",
+      "description": "CAPI core, kubeadm, and CAPD provider versions (aws, local-host, local-talos)",
       "managerFilePatterns": [
-        "/(^|/)mgmt/(aws|local-host)/capi-providers/(capi-system|capd-system)/.+\\.ya?ml$/"
+        "/(^|/)mgmt/(aws|local-host|local-talos)/capi-providers/(capi-system|capd-system)/.+\\.ya?ml$/"
       ],
       "matchStrings": ["\\s{2}version: \"v(?<currentValue>[^\"]+)\""],
       "depNameTemplate": "kubernetes-sigs/cluster-api",
