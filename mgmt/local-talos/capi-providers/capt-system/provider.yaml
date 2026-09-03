@@ -2,13 +2,20 @@
 # is "tinkerbell-tinkerbell" (its embedded default already points at the
 # right repo), but fetchConfig is set explicitly to stay independent of the
 # operator's embedded clusterctl defaults (#105).
+#
+# Pinned to the fork release, not upstream: upstream CAPT v0.7.0 does not
+# populate TinkerbellMachine status.installerImage, which the installer-image
+# handoff depends on (#156). The fork tag is upstream main plus exactly that
+# feature (PR tinkerbell/cluster-api-provider-tinkerbell#604): it mirrors the
+# Hardware `hardware.tinkerbell.org/installer-image` annotation into machine
+# status. Re-point this at upstream once a release there includes #604.
 apiVersion: operator.cluster.x-k8s.io/v1alpha2
 kind: InfrastructureProvider
 metadata:
   name: tinkerbell-tinkerbell
   namespace: capt-system
 spec:
-  # renovate: datasource=github-releases depName=tinkerbell/cluster-api-provider-tinkerbell
-  version: "v0.7.0"
+  # renovate: datasource=github-releases depName=shrinedogg/cluster-api-provider-tinkerbell
+  version: "v0.7.1"
   fetchConfig:
-    url: "https://github.com/tinkerbell/cluster-api-provider-tinkerbell/releases"
+    url: "https://github.com/shrinedogg/cluster-api-provider-tinkerbell/releases"
