@@ -10,10 +10,12 @@
 #   spec.controlPlaneEndpoint.host       - the machine's stable IP
 #   TinkerbellMachineTemplate hardwareName - your Tinkerbell Hardware CR name
 #
-# The installer image is deliberately NOT pinned here: CAPT resolves it from
-# the Hardware (status.installerImage) and CABPT injects it as
-# machine.install.image, so hardware-specific system extensions arrive
-# without hand-maintained image refs (#105).
+# The installer image is deliberately NOT pinned here: CABPT (>= v0.7.6)
+# injects the InfraMachine's status.installerImage as machine.install.image
+# when the infrastructure provider publishes it. Upstream CAPT v0.7.0 does
+# not populate that field (#156), so installs use the default Image Factory
+# schematic until the CAPT-side resolution lands; CABPT treats the absent
+# field as "no override".
 ---
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
