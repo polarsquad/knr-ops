@@ -21,6 +21,22 @@ EXPECTED = {
     },
     "pivot.sh": {"cert-manager", "cluster-api-operator"},
     ".github/workflows/validate.yml": {"renovate"},
+    "mgmt/local-talos/capi-providers/capi-system/providers.yaml": {
+        "kubernetes-sigs/cluster-api",
+    },
+    "mgmt/local-talos/capi-providers/cabpt-system/provider.yaml": {
+        "sidero-community/cluster-api-bootstrap-provider-talos",
+    },
+    "mgmt/local-talos/capi-providers/cacppt-system/provider.yaml": {
+        "sidero-community/cluster-api-control-plane-provider-talos",
+    },
+    "mgmt/local-talos/capi-providers/capt-system/provider.yaml": {
+        "tinkerbell/cluster-api-provider-tinkerbell",
+    },
+    "mgmt/local-talos/clusters/management/cluster.yaml": {
+        "kubernetes/kubernetes",
+        "siderolabs/talos",
+    },
 }
 
 
