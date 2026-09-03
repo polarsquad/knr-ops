@@ -23,7 +23,7 @@ bin = "zarf"
 env_file = ".env"
 
 [tasks.validate]
-description = "Check shell scripts, run the bootstrap config cross-check, and build every kustomize overlay"
+description = "Check scripts and air-gap image pins, cross-check bootstrap config, and build every kustomize overlay"
 run = '''
 fail=0
 for script in bootstrap.sh bootstrap-common.sh pivot.sh teardown.sh; do
@@ -33,6 +33,11 @@ for script in bootstrap.sh bootstrap-common.sh pivot.sh teardown.sh; do
     fail=1
   fi
 done
+echo "==> air-gap image digest pins"
+if ! python3 airgap/tests/test-airgap-image-digests.py; then
+  echo "    FAILED: air-gap image digest pins" >&2
+  fail=1
+fi
 echo "==> bootstrap.toml cross-check"
 if ! python3 tests/test-bootstrap-config.py; then
   echo "    FAILED: bootstrap.toml cross-check" >&2

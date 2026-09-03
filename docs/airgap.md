@@ -30,6 +30,18 @@ mise pin in `mise.toml` selects the matching Linux or macOS arm64 release
 asset. Docker and kind are also required on the deploy host (the prototype
 keeps kind as the management-cluster substrate; see Known limitations).
 
+CI requires every external image in an air-gap inventory or script changed by
+a pull request to use `repository:readable-tag@sha256:<digest>`. The tag
+documents the selected version; the digest makes the fetched content
+immutable. Untouched legacy files are migrated when first changed. Run
+`python3 airgap/tests/test-airgap-image-digests.py` (or `mise run validate`)
+to check relevant working-tree changes without registry or network access.
+Run `python3 airgap/tests/test-airgap-image-digests.py --all` in a clone to
+audit every air-gap inventory and shell script, including untouched legacy
+files.
+The locally built `localhost:5001/knr-ops-airgap:latest` config artifact is the
+only documented exception because it is created immediately before packaging.
+
 Every package build must be signed. For an operator build, generate or obtain
 a Cosign-compatible key pair, keep the private key outside the repository, and
 set `ZARF_SIGNING_KEY` to it. Set `ZARF_SIGNING_KEY_PASS` when the key is

@@ -165,6 +165,14 @@ locally: `mise x node@24 -- python3 tests/test-renovate-coverage.py`. They
 do not cover lookup liveness or the replacement path; only the
 dry-run and the handlebars simulation cover those.
 
+The offline `airgap/tests/test-airgap-image-digests.py` gate is separate from
+Renovate: it scans air-gap inventories and scripts changed by the PR, requires
+readable tags plus SHA-256 digests, and rejects inconsistent repeated
+references within the changed files. Untouched legacy files are not checked.
+It runs in both `mise run validate` and CI and performs no registry lookups.
+Use `python3 airgap/tests/test-airgap-image-digests.py --all` for a full-clone
+audit, including untouched legacy files.
+
 ## Where to look next
 
 Load these only when the task touches their domain:

@@ -6,12 +6,26 @@ on:
   pull_request:
 
 jobs:
+  airgap-image-pins:
+    name: Air-gap image digest pins
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify committed air-gap image digests
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 airgap/tests/test-airgap-image-digests.py --changed-from "$BASE_SHA"
+
   kustomize-build:
     name: Build kustomize overlays
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       - name: Install kustomize
         env:
@@ -66,10 +80,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       - name: Run yamllint
-        uses: ibiqlik/action-yamllint@v3
+        uses: ibiqlik/action-yamllint@v3.1.1
         with:
           file_or_dir: mgmt workload
           config_data: |
