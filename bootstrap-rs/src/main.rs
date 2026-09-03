@@ -2088,9 +2088,14 @@ async fn pivot_seed_target(
     // contain the management manifests.
     if cfg.is_local() {
         println!(">>> Publishing the current checkout as the OCI artifact...");
+        // Same endpoint forwarding as the initial publish: the mise
+        // oci-push task probes REGISTRY_HOST:REGISTRY_PORT, which is the
+        // kind-network name inside the toolbox and localhost on the host.
+        let (registry_host, oci_port) = cfg.registry_endpoint();
         let status = Command::new("mise")
             .args(["-E", &cfg.profile, "run", "oci-push"])
-            .env("REGISTRY_PORT", cfg.registry_port.to_string())
+            .env("REGISTRY_PORT", oci_port.to_string())
+            .env("REGISTRY_HOST", &registry_host)
             .env("OCI_REPOSITORY", &cfg.oci_repository)
             .env("OCI_TAG", &cfg.oci_tag)
             .status()
