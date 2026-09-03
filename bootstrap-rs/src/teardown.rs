@@ -1746,7 +1746,7 @@ pub async fn run_teardown(cfg: &Config, tcfg: &TeardownConfig) -> Result<()> {
                 "AWS_ONLY=1 cannot be combined with the local-talos profile\n       There is no AWS orphan sweep for operator-owned hardware"
             );
         }
-        for cmd in ["kubectl", "helm", "xargs"] {
+        for cmd in ["kind", "kubectl"] {
             if which_failure(cmd).await {
                 bail!("{cmd} not found in PATH");
             }
