@@ -37,6 +37,7 @@ EXPECTED = {
         "kubernetes/kubernetes",
         "siderolabs/talos",
     },
+    "mise.local-talos.toml": {"siderolabs/talos"},
 }
 
 

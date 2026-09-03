@@ -196,6 +196,16 @@
       "extractVersionTemplate": "^v(?<version>.+)",
       "autoReplaceStringTemplate": "clusterawsadm = { version = \"{{newValue}}\""
     },
+    {
+      "customType": "regex",
+      "description": "mise: talosctl pin (local-talos environment layer, issue #105)",
+      "managerFilePatterns": ["/(^|/)mise\\.local-talos\\.toml$/"],
+      "matchStrings": ["talosctl = \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "siderolabs/talos",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)",
+      "autoReplaceStringTemplate": "talosctl = \"{{newValue}}\""
+    },
     // ── bootstrap.toml chart pins (annotation-driven) ─────────────────────
     // Datasource and depName live in `# renovate:` comments next to the
     // chart pins in bootstrap.toml (consumed by the Rust binary since the
