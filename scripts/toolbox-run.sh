@@ -27,7 +27,8 @@ Env:
   TOOLBOX_IMAGE   image reference (default: ${TOOLBOX_IMAGE};
                   build locally with: docker build -f bootstrap-rs/Dockerfile \\
                     -t knr-ops-toolbox:dev . && TOOLBOX_IMAGE=knr-ops-toolbox:dev)
-  KNR_OPS_PROFILE aws | local-host (default: the mise environment in use)
+  KNR_OPS_PROFILE aws | local-host | local-talos
+                  (default: the mise environment in use)
 EOF
   exit 2
 }
@@ -146,7 +147,7 @@ case "$LIFECYCLE" in
   *)         usage ;;
 esac
 
-exec "$CONTAINER_ENGINE" run --rm "${TTY_ARGS[@]}" \
+exec "$CONTAINER_ENGINE" run --rm ${TTY_ARGS[@]+"${TTY_ARGS[@]}"} \
   -v "$REPO_ROOT:/workspace" \
   -w /workspace \
   -v "$SOCK_SOURCE:/var/run/docker.sock" \
@@ -154,4 +155,4 @@ exec "$CONTAINER_ENGINE" run --rm "${TTY_ARGS[@]}" \
   -e KUBECONFIG="$KUBECONFIG_IN" \
   "${PASS_ENV[@]}" \
   "$TOOLBOX_IMAGE" \
-  "${CLI_ARGS[@]}"
+  ${CLI_ARGS[@]+"${CLI_ARGS[@]}"}
