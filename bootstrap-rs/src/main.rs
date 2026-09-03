@@ -2384,7 +2384,7 @@ async fn run_bootstrap(cfg: &Config, http: &reqwest::Client) -> Result<()> {
              check 'kubectl -n flux-system get pods' before relying on the cluster"
         );
     }
-    if cfg.profile == "aws" {
+    if runs_github_preflight(cfg) {
         let url = preflight
             .github
             .as_ref()
@@ -2394,9 +2394,7 @@ async fn run_bootstrap(cfg: &Config, http: &reqwest::Client) -> Result<()> {
         println!(">>> Watch progress with: flux get kustomizations --watch");
     } else {
         let registry_name = &cfg.repo.bootstrap.registry_name;
-        println!(
-            ">>> Local-host profile complete: Flux is reconciling from the local OCI artifact"
-        );
+        println!(">>> Bootstrap complete: Flux is reconciling from the local OCI artifact");
         println!(
             ">>> Local registry: localhost:{port} (cluster endpoint: {registry_name}:5000)",
             port = cfg.registry_port
