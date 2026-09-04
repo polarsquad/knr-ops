@@ -37,8 +37,8 @@ resources. There is no app source code here, only declarative infrastructure.
   `capi-providers/capt-system/provider.yaml`); re-point at upstream once a
   release there includes it. Scope fence:
   management-only; no `addons/` (Talos ships its own CNI, no
-  HelmChartProxy consumers). Bootstrap/pivot wiring and docs land with
-  the rest of the #105 series.
+  HelmChartProxy consumers). The wiring landed in #169 and the docs in
+  #171; the remaining #105 item is the hardware acceptance run.
 - `workload/`: synced by each WORKLOAD cluster's Flux.
   - `base/`: ACK controllers and S3/RDS/IAM custom resources.
   - `<region>-01/`: per-cluster overlays pointing at `../base`.
