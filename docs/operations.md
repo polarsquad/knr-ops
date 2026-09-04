@@ -194,7 +194,7 @@ You also need:
   stack is operator-owned infrastructure this repository does not deploy.
   Minimal setup:
   1. Install the [tink stack](https://tinkerbell.org/docs/setup/install/)
-     (boots serving DHCP/PXE/iPXE, plus the Tinkerbell API) on a helper
+     (Smee serving DHCP/PXE/iPXE, plus the Tinkerbell API) on a helper
      Kubernetes cluster that can reach the machine's L2 network.
   2. Create the `Hardware` CR naming the machine's MAC address and reserved
      IP; its name must match the `hardwareName` in
@@ -207,7 +207,7 @@ You also need:
      `status.installerImage` and CABPT injects it as the Talos
      `machine.install.image`; without the annotation the default schematic
      is used.
-  4. Set the machine to PXE-boot from the network boots serves.
+  4. Set the machine to PXE-boot from the network Smee serves.
 - Two site-specific values in
   `mgmt/local-talos/clusters/management/cluster.yaml` before the first run:
   `spec.controlPlaneEndpoint.host` (the machine's stable IP) and the
@@ -477,7 +477,7 @@ The main controls keep the shell interface:
 |---|---|---|
 | `AWS_ONLY` | `0` | Literal `1` runs only the AWS orphan sweep; invalid with `local-host` and `local-talos` |
 | `FORCE_KIND_DELETE` | `0` | Literal `1` overrides the final controller-host deletion guard |
-| `CLUSTER_DELETE_TIMEOUT` | `1200` seconds | AWS workload-cluster deletion wait |
+| `CLUSTER_DELETE_TIMEOUT` | `1200` seconds | CAPI cluster deletion wait (aws workloads, local-talos management) |
 | `PROVIDER_DELETE_TIMEOUT` | `300` seconds | CAPI provider deletion wait |
 | `MGMT_KUBECONFIG` | native: `~/.kube/knr-ops-mgmt.yaml` | Post-pivot controller-host kubeconfig |
 

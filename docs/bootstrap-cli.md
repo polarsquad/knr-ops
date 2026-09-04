@@ -161,7 +161,7 @@ knr-bootstrap teardown [PROFILE]
 |---|---|---|
 | `AWS_ONLY` | `0` | Literal `1` skips Kubernetes steps and runs only the AWS orphan sweep; invalid with `local-host` and `local-talos` |
 | `FORCE_KIND_DELETE` | `0` | Literal `1` removes the controller host even when CAPI cluster deletion was not confirmed |
-| `CLUSTER_DELETE_TIMEOUT` | `1200` seconds | AWS workload-cluster deletion wait |
+| `CLUSTER_DELETE_TIMEOUT` | `1200` seconds | CAPI cluster deletion wait (aws workloads, local-talos management) |
 | `PROVIDER_DELETE_TIMEOUT` | `300` seconds | CAPI provider deletion wait |
 | `MGMT_KUBECONFIG` | `~/.kube/knr-ops-mgmt.yaml` | Post-pivot controller-host kubeconfig |
 
@@ -208,7 +208,7 @@ empty account.
 does not select a separate CLI subcommand.
 
 The three shell scripts remain as native reference and fallback paths until
-full parity runs pass for both environments. Local-host bootstrap, pivot, and
+full parity runs pass for all environments. Local-host bootstrap, pivot, and
 post-pivot teardown have completed parity runs. AWS full-parity runs still gate
 script retirement. The local-talos environment has not run end to end yet;
 its acceptance run waits on operator Tinkerbell hardware (issue #105). At

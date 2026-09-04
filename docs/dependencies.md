@@ -13,9 +13,10 @@ proposed updates appear in the Renovate dependency dashboard issue.
 
 Renovate discovers and updates versions in:
 
-- `mise.toml`, `mise.aws.toml`, and `mise.local-host.toml`: tool pins and the
-  Zarf CLI pin. Explicit per-tool custom managers replace the native mise
-  manager so each pin resolves against the intended upstream project.
+- `mise.toml`, `mise.aws.toml`, `mise.local-host.toml`, and
+  `mise.local-talos.toml`: tool pins and the Zarf CLI pin. Explicit per-tool
+  custom managers replace the native mise manager so each pin resolves against
+  the intended upstream project.
 - `bootstrap-rs/Cargo.toml` and `bootstrap-rs/Cargo.lock`: Rust crate
   dependencies through Renovate's Cargo manager.
 - `bootstrap.toml`: the Flux Operator, cert-manager, and CAPI Operator chart

@@ -149,7 +149,7 @@ docker build -f bootstrap-rs/Dockerfile -t knr-ops-toolbox:dev .
 export TOOLBOX_IMAGE=knr-ops-toolbox:dev
 mise trust
 mise install
-cp .env.example .env        # AWS only: fill in the Git source and PAT
+cp .env.example .env        # aws and local-talos: fill in the Git source and PAT
 mise run sops-keygen         # first time only: age key for SOPS
 mise run bootstrap           # toolbox: bootstrap, Flux handoff, then pivot
 export KUBECONFIG="$PWD/.kube/knr-ops-mgmt.yaml"
@@ -231,7 +231,7 @@ defaults remain in the binary.
 
 `mise run bootstrap`, `pivot`, and `teardown` now run the CLI through the
 toolbox wrapper. The shell scripts remain native reference and fallback paths
-until both environments complete parity runs; local-host has passed the full
+until all environments complete parity runs; local-host has passed the full
 lifecycle, while AWS parity still gates retirement. See
 [The bootstrap CLI](docs/bootstrap-cli.md) for the interface, configuration,
 teardown controls, toolbox release, and current parity status.
@@ -264,7 +264,7 @@ teardown controls, toolbox release, and current parity status.
 ├── tests/                         Config and Renovate coverage cross-checks
 ├── docs/                          Detailed documentation (see table above)
 ├── mise.toml / mise.*.toml        Pinned toolchain and per-environment
-│                                  task layers (aws, local-talos)
+│                                  task layers (aws, local-host, local-talos)
 ├── renovate.json5                 Hosted Renovate discovery and grouping rules
 ├── mgmt/aws/                      Synced by the MANAGEMENT cluster's Flux
 │   ├── infrastructure/           cert-manager, CAPI operator, CAPA identity,
