@@ -304,10 +304,9 @@
     // ── kind node images ─────────────────────────────────────────────────
     {
       "customType": "regex",
-      "description": "kindest/node image pins in cluster classes and airgap scripts",
+      "description": "kindest/node image pins in management cluster manifests",
       "managerFilePatterns": [
-        "/(^|/)mgmt/.+\\.ya?ml$/",
-        "/(^|/)airgap/scripts/.+\\.sh$/"
+        "/(^|/)mgmt/.+\\.ya?ml$/"
       ],
       "matchStrings": ["kindest/node:v(?<currentValue>[0-9A-Za-z.\\-]+)"],
       "depNameTemplate": "kindest/node",
@@ -328,6 +327,16 @@
     },
     {
       "customType": "regex",
+      "description": "external container image refs in authoritative airgap scripts (#173)",
+      "managerFilePatterns": ["/(^|/)airgap/scripts/.+\\.sh$/"],
+      "matchStrings": [
+        "(?:^|\\n)(?:[ \\t]*|[^\\n#]*?(?:[ \\t\\\"'=(]|:-))(?<depName>(?:(?:[a-zA-Z0-9][a-zA-Z0-9._-]*\\.[a-zA-Z0-9._-]+|localhost)(?::[0-9]+)?/(?:[a-zA-Z0-9][a-zA-Z0-9._-]*/)*[a-zA-Z0-9][a-zA-Z0-9._-]*|(?:[a-zA-Z0-9][a-zA-Z0-9._-]*/)+[a-zA-Z0-9][a-zA-Z0-9._-]*|registry)):(?<currentValue>[a-zA-Z0-9_][a-zA-Z0-9_.-]*)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
       "description": "zarf.yaml image refs (registry with optional port)",
       "managerFilePatterns": ["/(^|/)airgap/zarf\\.yaml$/"],
       "matchStrings": [
@@ -338,17 +347,31 @@
     },
     // EKS addon versions (*-eksbuild.*) intentionally not managed: they have
     // no public registry datasource. Tracked in issue #74 as manual updates.
-    // Unversioned tags (e.g. localhost:5001/knr-ops-airgap:latest in
-    // zarf.yaml, built locally per run) are also intentionally untracked:
-    // a bare "latest" tag has no comparable version.
+    // The locally built localhost:5001/knr-ops-airgap:latest artifact is
+    // extracted but intentionally disabled by the scoped packageRule below.
     // ── end customManagers ────────────────────────────────────────────────
   ],
   "packageRules": [
     {
       "description": "Pin air-gap container images by digest while retaining readable tags",
       "matchDatasources": ["docker"],
-      "matchFileNames": ["airgap/images.txt", "airgap/zarf.yaml"],
+      "matchFileNames": [
+        "airgap/images.txt",
+        "airgap/zarf.yaml",
+        "airgap/scripts/*.sh"
+      ],
       "pinDigests": true
+    },
+    {
+      "description": "Do not resolve the air-gap config artifact built locally per run",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["localhost:5001/knr-ops-airgap"],
+      "matchFileNames": [
+        "airgap/images.txt",
+        "airgap/zarf.yaml",
+        "airgap/scripts/*.sh"
+      ],
+      "enabled": false
     },
     {
       "description": "Pin toolbox image base images by digest (issue #104)",

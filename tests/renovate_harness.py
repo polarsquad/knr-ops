@@ -57,6 +57,22 @@ class RenovateResult:
             for update in dep.get("updates", [])
         )
 
+    def deps_without_pin_digest(self, package_file, excluded_dep_names=None):
+        """Extracted dependencies lacking a valid sha256 pinDigest update."""
+        excluded_dep_names = set(excluded_dep_names or ())
+        return [
+            f"{dep.get('depName', '<unknown>')}:{dep.get('currentValue', '<unknown>')}"
+            for dep in self.deps_by_file[package_file]
+            if dep.get("depName") not in excluded_dep_names
+            and not any(
+                update.get("updateType") == "pinDigest"
+                and update.get("newDigest", "").startswith("sha256:")
+                and len(update["newDigest"]) == 71
+                and all(char in "0123456789abcdef" for char in update["newDigest"][7:])
+                for update in dep.get("updates", [])
+            )
+        ]
+
     def print_diagnostics(self, stream=None):
         stream = stream or sys.stderr
         if self.diagnostics:
